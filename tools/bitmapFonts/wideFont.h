@@ -2,7 +2,7 @@
 #define WIDE_FONT_H
 
 Font wideFont[] = {
-{' ', { /* Processor should ignore this */
+{' ', {
 "     ",
 "     ",
 "     ",
