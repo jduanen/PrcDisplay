@@ -1,0 +1,6 @@
+LedArray		KEYWORD1
+clear			KEYWORD2
+fill			KEYWORD2
+run  			KEYWORD2
+message 		KEYWORD2
+appendMessage 		KEYWORD2
