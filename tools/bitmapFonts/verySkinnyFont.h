@@ -2,7 +2,7 @@
 #define VERY_SKINNY_FONT_H
 
 Font verySkinnyFont[] = {
-{' ', { /* Processor should ignore this */
+{' ', {
 "   ",
 "   ",
 "   ",
