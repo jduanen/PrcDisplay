@@ -17,12 +17,14 @@
 #include <ShiftRegister74HC595.h>
 #include "fonts.h"
 
-
+//// FIXME figure out how to handle this
+#define NUM_SR          4
 #define LIB_VERSION     "1.0"
 #define STD_WAIT        100 //50
 #define LONG_WAIT       2000
 
 
+template<uint8_t Size>
 class LedArray {
 public:
     String libVersion = LIB_VERSION;
@@ -46,14 +48,14 @@ private:
     byte numCols;
     int numSRs;
 
-    //// FIXME figure out how to initialize this
-    ShiftRegister74HC595 *srPtr;
+    //// FIXME figure out how to handle this
+    ShiftRegister74HC595<NUM_SR> sr;
 
     // active high bitmap, row pixels start at the LSB, [0,0] is upper left corner
     uint32_t *frameBufferPtr;
 
     // string to be displayed
-    String message;
+    String msg;
 
     int loopCount = 0;
     int curChar = 0;
@@ -62,6 +64,6 @@ private:
     void writeToFB(char *strPtr);
     void scrollMessage();
     void scanDisplay();
-}
+};
 
 #endif /*LED_ARRAY_H*/
