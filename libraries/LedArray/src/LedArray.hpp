@@ -5,53 +5,119 @@
 */
 
 template<uint8_t Size>
-LedArray<Size>::LedArray(byte dataPin, byte srClkPin, byte rClkPin, byte numRows, byte numCols, int scrollSpeed) {
-    stdWaitCycles = scrollSpeed;
-    waitCycles = stdWaitCycles;
-    numRows = numRows;
-    numCols = numCols;
-    frameBufferPtr = new uint32_t[numRows];
-    ShiftRegister74HC595<Size>(dataPin, srClkPin, rClkPin);
+LedArray<Size>::LedArray(const uint8_t dataPin, const uint8_t srClkPin, const uint8_t rClkPin, const uint8_t numRows, const uint8_t numCols, const uint8_t numSRs, const int scrollSpeed) {
+    _stdWaitCycles = scrollSpeed;
+    _waitCycles = _stdWaitCycles;
+    _numRows = numRows;
+    _numCols = numCols;
+    _frameBufferPtr = new uint32_t[numRows];
+    _srPtr = new ShiftRegister74HC595<NUM_SR>(dataPin, srClkPin, rClkPin);
 }
 
-void LedArray::clear() {
-    printf("clear: TBD");
-}
-
-void LedArray::fill(uint32_t val) {
-    printf("fill: TBD");
-}
-
-void LedArray::fill(uint32_t vals[]) {
-    for (int i = 0; i < numRows; i++) {
-        fill(vals[i]);
+template<uint8_t Size>
+void LedArray<Size>::clear() {
+    for (int i = 0; i < _numRows; i++) {
+        _frameBufferPtr[i] = 0;
     }
 }
 
-void LedArray::run() {
-    printf("run: TBD");
+template<uint8_t Size>
+void LedArray<Size>::fill(uint32_t val) {
+    for (int i = 0; i < _numRows; i++) {
+        _frameBufferPtr[i] = val;
+    }
+}
+
+template<uint8_t Size>
+void LedArray<Size>::run() {
+    Serial.println("Run: " + String(_loopCount) + ", " + String(_waitCycles));
+    if ((_loopCount % _waitCycles) == 0) {
+        _waitCycles = _stdWaitCycles;
+        scrollMessage();
+    }
+    scanDisplay();
+    _loopCount++;
 }
 
 //// TODO add getFonts() -- return number and description of each font
 
-void message(String str, byte fontNumber) {
-    assert((fontNumber >= 0) && (fontNumber < NUM_FONTS)); // Invalid font number selection
-    printf("message: TBD");
+template<uint8_t Size>
+void LedArray<Size>::message(String *strPtr, byte fontNumber) {
+    assert((_fontNumber >= 0) && (_fontNumber < NUM_FONTS)); // Invalid font number selection
+    //_fontNumsPtr = new byte[strPtr->length];
+    //fill(_fontNumsPtr, _fontNumsPtr + strPtr->length, fontNumber);
+    //// FIXME add parallel font number array
+    _msg = *strPtr;
+    Serial.println("Message: " + _msg);
 }
 
-void appendMessage(String str, byte fontNumber) {
-    assert((fontNumber >= 0) && (fontNumber < NUM_FONTS)); // Invalid font number selection
-    printf("appendMessage: TBD");
+template<uint8_t Size>
+void LedArray<Size>::appendMessage(String *strPtr, byte fontNumber) {
+    assert((_fontNumber >= 0) && (_fontNumber < NUM_FONTS)); // Invalid font number selection
+    //_fontNumsPtr = new byte[strPtr->length + 1];
+    //fill(_fontNumsPtr + _fontNumsPtr->length, _fontNumsPtr + strPtr->length, fontNumber);
+    //// FIXME extend parallel font number array
+    _msg.concat(*strPtr);
 }
 
-void LedArray::writeToFB(char *strPtr) {
-    printf("writeToFB: TBD");
+/*
+template<uint8_t Size>
+void LedArray<Size>::writeToFB(char *strPtr) {
+  for (int j = 0; j < strlen(strPtr); j++) {
+    char c = strPtr[j];
+    int columnMask = ((1 << fonts[_fontNumber][c].columns) - 1);
+    for (int i = 0; i < _numRows; i++) {
+      _frameBufferPtr[i] = (_frameBufferPtr[i] << (fonts[_fontNumber][c].columns + 1)) | (fonts[_fontNumber][c].code[i] & columnMask);
+      Serial.println("FB: 0x" + String(frameBuffer[i], HEX));
+    }
+  }
+}
+*/
+
+template<uint8_t Size>
+void LedArray<Size>::scrollMessage() {
+    char c = _msg.charAt(_curChar);
+
+    Serial.println("scrollMessage: " + String(c) + ", " + String(_curCol) + ", " + String(_curChar));
+
+    for (int i = 0; i < _numRows; i++) {
+        _frameBufferPtr[i] = (_frameBufferPtr[i] << 1) | ((fonts[_fontNumber][c].code[i] >> ((fonts[_fontNumber][c].columns - 1) - _curCol)) & 0x01);
+    }
+    _curCol++;
+    if (_curCol > fonts[_fontNumber][c].columns) {
+        _curCol = 0;
+        _curChar++;
+    }
+    if (_curChar > _msg.length()) {
+        _curChar = 0;
+        _waitCycles = LONG_WAIT;
+    }
 }
 
-void LedArray::scrollMessage() {
-    printf("scrollMessage: TBD");
+template<uint8_t Size>
+void LedArray<Size>::scanDisplay() {
+    int rowSelect;
+    // layout: [nc[3:0], rows[6:3]], [rows[2:0], cols[20:16]], [cols[15:8]], [cols[7:0]]
+    uint8_t srValues[_numRows][NUM_SR];
+
+    Serial.println("scanDisplay");
+
+    // scan all of the FB's lines out to the display
+    for (int i = 0; i < _numRows; i++) {
+        rowSelect = (1 << i);
+        srValues[i][0] = ~(_frameBufferPtr[i] & 0xFF);
+        srValues[i][1] = ~((_frameBufferPtr[i] >> 8) & 0xFF);
+        srValues[i][2] = ((rowSelect & 0x07) << 5) | (~(_frameBufferPtr[i] >> 16) & 0x1F);
+        srValues[i][3] = ((rowSelect >> 3) & 0x0F);
+        _srPtr->setAll(srValues[i]);
+    }
 }
 
-void LedArray::scanDisplay() {
-    printf("scanDisplay: TBD");
+template<uint8_t Size>
+void LedArray<Size>::clearDisplay() {
+   uint8_t srValues[NUM_SR] = {0,};
+
+    for (int i = 0; i < _numRows; i++) {
+        _srPtr->setAll(srValues);
+    }
 }

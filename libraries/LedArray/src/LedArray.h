@@ -11,17 +11,16 @@
 //  * add OE pin to the constructor
 //  * add blink mode option
 
-#ifndef LED_ARRAY_H
-#define LED_ARRAY_H
+#pragma once
 
+#include <Arduino.h>
 #include <ShiftRegister74HC595.h>
 #include "fonts.h"
 
 //// FIXME figure out how to handle this
 #define NUM_SR          4
 #define LIB_VERSION     "1.0"
-#define STD_WAIT        100 //50
-#define LONG_WAIT       2000
+#define LONG_WAIT       1000
 
 
 template<uint8_t Size>
@@ -29,41 +28,41 @@ class LedArray {
 public:
     String libVersion = LIB_VERSION;
 
-    LedArray(byte dataPin, byte srClkPin, byte rClkPin, byte numRows, byte numCols, byte numSRs, int scrollSpeed);
+    LedArray(const uint8_t dataPin, const uint8_t srClkPin, const uint8_t rClkPin, const uint8_t numRows, const uint8_t numCols, const uint8_t numSRs, const int scrollSpeed);
 
     void clear();
     void fill(uint32_t val);
-    void fill(uint32_t vals[]);
     void run();
     //// TODO add getFonts() -- return number and description of each font
-    void message(String str, byte fontNumber);
-    void appendMessage(String str, byte fontNumber);
+    void message(String *strPtr, byte fontNumber);
+    void appendMessage(String *strPtr, byte fontNumber);
 
 private:
-    int stdWaitCycles;
-    int waitCycles;
-    byte fontNumber;
+    int _stdWaitCycles;
+    int _waitCycles;
+    uint8_t _fontNumber;  //// FIXME
 
-    byte numRows;
-    byte numCols;
-    int numSRs;
+    uint8_t _numRows;
+    uint8_t _numCols;
+    int _numSRs;
 
     //// FIXME figure out how to handle this
-    ShiftRegister74HC595<NUM_SR> sr;
+    ShiftRegister74HC595<NUM_SR> *_srPtr;
 
     // active high bitmap, row pixels start at the LSB, [0,0] is upper left corner
-    uint32_t *frameBufferPtr;
+    uint32_t *_frameBufferPtr;
 
-    // string to be displayed
-    String msg;
+    String _msg;
+    String _fontNums;  //// FIXME
 
-    int loopCount = 0;
-    int curChar = 0;
-    byte curCol = 0;
+    int _loopCount = 0;
+    int _curChar = 0;
+    uint8_t _curCol = 0;
 
-    void writeToFB(char *strPtr);
+    //void writeToFB(char *strPtr);
     void scrollMessage();
     void scanDisplay();
+    void clearDisplay();
 };
 
-#endif /*LED_ARRAY_H*/
+#include "LedArray.hpp"
