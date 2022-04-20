@@ -34,13 +34,14 @@ public:
     void fill(uint32_t val);
     void run();
     //// TODO add getFonts() -- return number and description of each font
-    void message(String *strPtr, byte fontNumber);
-    void appendMessage(String *strPtr, byte fontNumber);
+    void message(const char str[], const char font);
+    void message(String *strPtr, const char font);
+    void appendMessage(const char str[], const char font);
+    void appendMessage(String *strPtr, const char font);
 
 private:
     int _stdWaitCycles;
     int _waitCycles;
-    uint8_t _fontNumber;  //// FIXME
 
     uint8_t _numRows;
     uint8_t _numCols;
@@ -52,13 +53,14 @@ private:
     // active high bitmap, row pixels start at the LSB, [0,0] is upper left corner
     uint32_t *_frameBufferPtr;
 
-    String _msg;
-    String _fontNums;  //// FIXME
+    String _msg = "";
+    String _fontNums = "";
 
     int _loopCount = 0;
     int _curChar = 0;
     uint8_t _curCol = 0;
 
+//    void _message(String str, const char font);
     //void writeToFB(char *strPtr);
     void scrollMessage();
     void scanDisplay();

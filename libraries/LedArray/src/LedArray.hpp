@@ -30,7 +30,6 @@ void LedArray<Size>::fill(uint32_t val) {
 
 template<uint8_t Size>
 void LedArray<Size>::run() {
-    Serial.println("Run: " + String(_loopCount) + ", " + String(_waitCycles));
     if ((_loopCount % _waitCycles) == 0) {
         _waitCycles = _stdWaitCycles;
         scrollMessage();
@@ -41,23 +40,57 @@ void LedArray<Size>::run() {
 
 //// TODO add getFonts() -- return number and description of each font
 
+
+//// FIXME DRY this all up
+
+/*
 template<uint8_t Size>
-void LedArray<Size>::message(String *strPtr, byte fontNumber) {
-    assert((_fontNumber >= 0) && (_fontNumber < NUM_FONTS)); // Invalid font number selection
-    //_fontNumsPtr = new byte[strPtr->length];
-    //fill(_fontNumsPtr, _fontNumsPtr + strPtr->length, fontNumber);
-    //// FIXME add parallel font number array
+void LedArray<Size>::_message(String str, const char font) {
+    assert((font >= '0') && (font < ('0' + NUM_FONTS))); // Invalid font number selection
+    for (int i = 0; (i < str.length()); i++) {
+        _fontNums.concat(font);
+    }
+}
+*/
+
+template<uint8_t Size>
+void LedArray<Size>::message(String *strPtr, const char font) {
+    _fontNums = "";
+    assert((font >= '0') && (font < ('0' + NUM_FONTS))); // Invalid font number selection
+    for (int i = 0; (i < strPtr->length()); i++) {
+        _fontNums.concat(font);
+    }
+//    _message(*strPtr, font);
     _msg = *strPtr;
-    Serial.println("Message: " + _msg);
 }
 
 template<uint8_t Size>
-void LedArray<Size>::appendMessage(String *strPtr, byte fontNumber) {
-    assert((_fontNumber >= 0) && (_fontNumber < NUM_FONTS)); // Invalid font number selection
-    //_fontNumsPtr = new byte[strPtr->length + 1];
-    //fill(_fontNumsPtr + _fontNumsPtr->length, _fontNumsPtr + strPtr->length, fontNumber);
-    //// FIXME extend parallel font number array
+void LedArray<Size>::message(const char str[], const char font) {
+    _fontNums = "";
+    assert((font >= '0') && (font < ('0' + NUM_FONTS))); // Invalid font number selection
+    for (int i = 0; (i < strlen(str)); i++) {
+        _fontNums.concat(font);
+    }
+    _msg = String(str);
+}
+
+template<uint8_t Size>
+void LedArray<Size>::appendMessage(String *strPtr, const char font) {
+    assert((font >= '0') && (font < ('0' + NUM_FONTS))); // Invalid font number selection
+    for (int i = 0; (i < strPtr->length()); i++) {
+        _fontNums.concat(font);
+    }
+//    _message(*strPtr, font);
     _msg.concat(*strPtr);
+}
+
+template<uint8_t Size>
+void LedArray<Size>::appendMessage(const char str[], const char font) {
+    assert((font >= '0') && (font < ('0' + NUM_FONTS))); // Invalid font number selection
+    for (int i = 0; (i < strlen(str)); i++) {
+        _fontNums.concat(font);
+    }
+    _msg.concat(String(str));
 }
 
 /*
@@ -68,7 +101,6 @@ void LedArray<Size>::writeToFB(char *strPtr) {
     int columnMask = ((1 << fonts[_fontNumber][c].columns) - 1);
     for (int i = 0; i < _numRows; i++) {
       _frameBufferPtr[i] = (_frameBufferPtr[i] << (fonts[_fontNumber][c].columns + 1)) | (fonts[_fontNumber][c].code[i] & columnMask);
-      Serial.println("FB: 0x" + String(frameBuffer[i], HEX));
     }
   }
 }
@@ -76,19 +108,20 @@ void LedArray<Size>::writeToFB(char *strPtr) {
 
 template<uint8_t Size>
 void LedArray<Size>::scrollMessage() {
+    int fontNumber;
     char c = _msg.charAt(_curChar);
-
-    Serial.println("scrollMessage: " + String(c) + ", " + String(_curCol) + ", " + String(_curChar));
-
-    for (int i = 0; i < _numRows; i++) {
-        _frameBufferPtr[i] = (_frameBufferPtr[i] << 1) | ((fonts[_fontNumber][c].code[i] >> ((fonts[_fontNumber][c].columns - 1) - _curCol)) & 0x01);
+    if (c != 0) {
+        fontNumber = _fontNums.charAt(_curChar) - '0';
+        for (int i = 0; i < _numRows; i++) {
+            _frameBufferPtr[i] = (_frameBufferPtr[i] << 1) | ((fonts[fontNumber][c].code[i] >> ((fonts[fontNumber][c].columns - 1) - _curCol)) & 0x01);
+        }
     }
     _curCol++;
-    if (_curCol > fonts[_fontNumber][c].columns) {
+    if (_curCol > fonts[fontNumber][c].columns) {
         _curCol = 0;
         _curChar++;
     }
-    if (_curChar > _msg.length()) {
+    if (_curChar >= _msg.length()) {
         _curChar = 0;
         _waitCycles = LONG_WAIT;
     }
@@ -99,8 +132,7 @@ void LedArray<Size>::scanDisplay() {
     int rowSelect;
     // layout: [nc[3:0], rows[6:3]], [rows[2:0], cols[20:16]], [cols[15:8]], [cols[7:0]]
     uint8_t srValues[_numRows][NUM_SR];
-
-    Serial.println("scanDisplay");
+    uint8_t clearLine[NUM_SR] = {0xFF, 0xFF, 0x1F, 0x00};
 
     // scan all of the FB's lines out to the display
     for (int i = 0; i < _numRows; i++) {
@@ -111,6 +143,9 @@ void LedArray<Size>::scanDisplay() {
         srValues[i][3] = ((rowSelect >> 3) & 0x0F);
         _srPtr->setAll(srValues[i]);
     }
+
+    // clear the last line
+    _srPtr->setAll(clearLine);
 }
 
 template<uint8_t Size>
