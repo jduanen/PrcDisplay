@@ -32,25 +32,44 @@ int loopCnt = 0;
 
 
 void setup() { 
+  String msg = String("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
+
   delay(1000);
   Serial.begin(19200);
-  Serial.println("BEGIN");
+  Serial.println("\nBEGIN");
 
-  //// TODO get and print available font info
+  Serial.println("Fonts Version: " + String(FONTS_VERSION));
+  Serial.println("Number of Fonts: " + String(NUM_FONTS));
+  Serial.print("Font Names: [");
+  for (int i = 0; (i < NUM_FONTS); i++) {
+    Serial.print(fontNames[i] + String(", "));
+  }
+  Serial.println("]");
 
-  String msg;
+  leds.clear();
+  Serial.println("Running Test #" + String(TEST_NUMBER));
   switch (TEST_NUMBER) {
     case 0:
-      msg = String("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
       leds.message(&msg, SKINNY_FONT);
     break;
     case 1:
-      leds.message("ABCDabcd", WIDE_FONT);
-      leds.appendMessage("EFGHefgh", VERY_SKINNY_FONT);
-      leds.message("IJKLijkl", SKINNY_FONT);
+      leds.message("Wide FONT; ", WIDE_FONT);
+      leds.appendMessage("Skinny FONT; ", SKINNY_FONT);
+      leds.appendMessage("Very Skinny FONT; ", VERY_SKINNY_FONT);
+      leds.appendMessage("Symbols FONT: ", WIDE_FONT);
+      leds.appendMessage("ABCDEFGHIJKLMNOPQRSTU...", SYMBOLS_FONT);
     break;
     case 2:
-      leds.message("ABCDEFGHIJKLM", SYMBOLS_FONT);
+      leds.message(&msg, WIDE_FONT);
+    break;
+    case 3:
+      leds.message(&msg, SKINNY_FONT);
+    break;
+    case 4:
+      leds.message(&msg, VERY_SKINNY_FONT);
+    break;
+    case 5:
+      leds.message(&msg, SYMBOLS_FONT);
     break;
     default:
       Serial.println("Invalid Test Number: " + String(TEST_NUMBER));
