@@ -33,7 +33,6 @@ public:
     void clear();
     void fill(uint32_t val);
     void run();
-    //// TODO add getFonts() -- return number and description of each font
     void message(const char str[], const char font);
     void message(String *strPtr, const char font);
     void appendMessage(const char str[], const char font);
