@@ -3,12 +3,17 @@
 */
 
 #include <stdio.h>
+#include <assert.h>
+
+
+#define FONTS_VERSION   "1.0.0"
 
 #define EXTENDED_ASCII
 
-#define NUM_ROWS        7
-#define MAX_CHAR_COLS   8
 #define NUM_FONTS       4
+#define MAX_CHAR_COLS   8
+
+#define NUM_ROWS        7
 #define NUM_CHARS       128
 
 #define MISSING_BITS    0x55
@@ -27,6 +32,8 @@ typedef struct {
 
 Font *fonts[] = {wideFont, skinnyFont, verySkinnyFont, symbolsFont};
 
+
+//// TODO add font name and description fields
 typedef struct {
     unsigned char code[NUM_ROWS];
     unsigned char columns;
@@ -35,8 +42,8 @@ typedef struct {
 CharBitmap bitmapFont[NUM_FONTS][NUM_CHARS];
 
 
-void main() {
-    unsigned char letter, bits;
+int main() {
+    unsigned char bits;
     Font *fptr;
 
     for (int f = 0; f < NUM_FONTS; f++) {
@@ -63,20 +70,32 @@ void main() {
                     }
                     bitmapFont[f][c].code[i] = bits;
                 }
+                assert(fptr->width <= MAX_CHAR_COLS); // Number of columns exceeds max value
                 bitmapFont[f][c].columns = fptr->width;
             }
         }
     }
 
+    //// TODO add name and description for each font
     printf("/* Auto-generated bitmap fonts file */\n\n");
+
+    printf("#ifndef FONTS_H\n");
+    printf("#define FONTS_H\n\n");
+
+    printf("#define FONTS_VERSION   \"%s\"\n", FONTS_VERSION);
     printf("#define NUM_FONTS       %d\n", NUM_FONTS);
     printf("#define NUM_ROWS        %d\n", NUM_ROWS);
     printf("#define MAX_CHAR_COLS   %d\n", MAX_CHAR_COLS);
     printf("#define NUM_CHARS       %d\n\n", NUM_CHARS);
+
+    //// FIXME find a better way of doing this
+    printf("String fontNames[NUM_FONTS] = {String(\"Wide\"), String(\"Skinny\"), String(\"VerySkinny\"), String(\"Symbols\")};\n\n");
+
     printf("typedef struct {\n");
     printf("    unsigned char code[NUM_ROWS];\n");
     printf("    unsigned char columns;\n");
     printf("} CharBitmap;\n\n");
+
     printf("CharBitmap fonts[NUM_FONTS][NUM_CHARS] = {\n");
     for (int f = 0; f < NUM_FONTS; f++) {
         printf("  {\n");
@@ -93,4 +112,6 @@ void main() {
         printf("  },\n");
     }
     printf("};\n");
+    printf("#endif /*FONTS_H*/\n");
+    return 0;
 }
