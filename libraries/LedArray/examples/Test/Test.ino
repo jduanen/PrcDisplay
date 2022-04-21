@@ -8,22 +8,27 @@
 #include <LedArray.h>
 
 
-#define DATA_PIN        2
-#define SRCLK_PIN       4
-#define RCLK_PIN        5
+#define TEST_NUMBER         1
 
-#define NUM_SR          4
-#define NUM_ROWS        7
-#define NUM_COLS        21
+#define DATA_PIN            2
+#define SRCLK_PIN           4
+#define RCLK_PIN            5
 
-#define STD_WAIT        10
+#define NUM_SR              4
+#define NUM_ROWS            7
+#define NUM_COLS            21
 
-#define WIDE_FONT           0
-#define SKINNY_FONT         1
-#define VERY_SKINNY_FONT    2
+#define STD_WAIT            50
+
+#define WIDE_FONT           '0'
+#define SKINNY_FONT         '1'
+#define VERY_SKINNY_FONT    '2'
+#define SYMBOLS_FONT        '3'
 
 
 LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, NUM_ROWS, NUM_COLS, NUM_SR, STD_WAIT);
+
+int loopCnt = 0;
 
 
 void setup() { 
@@ -33,12 +38,27 @@ void setup() {
 
   //// TODO get and print available font info
 
-  String msg = String("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
-  leds.message(&msg, SKINNY_FONT);
+  String msg;
+  switch (TEST_NUMBER) {
+    case 0:
+      msg = String("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
+      leds.message(&msg, SKINNY_FONT);
+    break;
+    case 1:
+      leds.message("ABCDabcd", WIDE_FONT);
+      leds.appendMessage("EFGHefgh", VERY_SKINNY_FONT);
+      leds.message("IJKLijkl", SKINNY_FONT);
+    break;
+    case 2:
+      leds.message("ABCDEFGHIJKLM", SYMBOLS_FONT);
+    break;
+    default:
+      Serial.println("Invalid Test Number: " + String(TEST_NUMBER));
+      break;
+  }
 }
 
 void loop() {
   leds.run();
-  Serial.println("Loop");
-  delay(1000);
+  loopCnt++;
 }
