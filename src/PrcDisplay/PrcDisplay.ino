@@ -6,7 +6,7 @@
 *  using four 74HC595 shift registers.
 *
 * Notes:
-*  - I2C defaults: SDA=4 -> D2, SCL=5 -> D1
+*  - I2C defaults: SDA=GPIO4 -> D2, SCL=GPIO5 -> D1
 *
 * TODO
 *  - Add per-message blink option (using the SRs' OE bits)
@@ -16,51 +16,31 @@
 *
 ****************************************************************************/
 
+#include <Arduino.h>
 #include <PCF8574.h>
 #include <ShiftRegister74HC595.h>
-#include "fonts.h"
 #include <LedArray.h>
 
+#define EL_WIRES            1
+#define LED_ARRAY           1
 
-#define VERBOSE         1
-
-// ELWire values
-#define I2C_BASE_ADDR   0x38    // PCF8574A
-//#define I2C_BASE_ADDR   0x20    // PCF8574
-#define READ_ADDR       0x4F
-#define WRITE_ADDR      0x4E
-
-#define NUM_EL_WIRES       8
-
-// LEDArray values
-#define TEST_NUMBER         1   //// TMP TMP TMP
-
-#define DATA_PIN            2
-#define SRCLK_PIN           4
-#define RCLK_PIN            5
-
-#define NUM_SR              4
-#define NUM_ROWS            7
-#define NUM_COLS            21
-
-#define STD_WAIT            50
-
-#define WIDE_FONT           '0'
-#define SKINNY_FONT         '1'
-#define VERY_SKINNY_FONT    '2'
-#define SYMBOLS_FONT        '3'
-
+#define VERBOSE             1
 
 int loopCnt = 0;
 
-// ELWire state
+#ifdef EL_WIRES
+#define I2C_BASE_ADDR       0x38    // PCF8574A
+//#define I2C_BASE_ADDR       0x20    // PCF8574
+#define READ_ADDR           0x4F
+#define WRITE_ADDR          0x4E
+
+#define NUM_EL_WIRES        8
+
+//#define SCL_PIN             1
+//#define SDA_PIN             2
+
 PCF8574 prcd = PCF8574(I2C_BASE_ADDR);
 
-// LEDarray state
-LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, NUM_ROWS, NUM_COLS, NUM_SR, STD_WAIT);
-
-
-// ELWire functions
 void initWires() {
   prcd.pinMode(P0, OUTPUT, HIGH);
   prcd.pinMode(P1, OUTPUT, HIGH);
@@ -94,8 +74,29 @@ void writeAllWires(byte values) {
     Serial.print("writeAllWires: 0x" +  String(values, HEX) + "; ");
   }
 }
+#endif /*EL_WIRES*/
 
-// LEDarray functions
+#ifdef LED_ARRAY
+#define TEST_NUMBER         1   //// TMP TMP TMP
+
+#define DATA_PIN            14  // D5
+#define SRCLK_PIN           12  // D6
+#define RCLK_PIN            13  // D7
+#define OE_PIN              15  // D8
+
+#define NUM_SR              4
+#define NUM_ROWS            7
+#define NUM_COLS            21
+
+#define STD_WAIT            50
+
+#define WIDE_FONT           '0'
+#define SKINNY_FONT         '1'
+#define VERY_SKINNY_FONT    '2'
+#define SYMBOLS_FONT        '3'
+
+LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, NUM_ROWS, NUM_COLS, NUM_SR, STD_WAIT);
+
 //// FIXME
 void initLedArray() {
   String msg = String("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
@@ -109,6 +110,9 @@ void initLedArray() {
     }
     Serial.println("]");
   }
+
+  pinMode(OE_PIN, OUTPUT);
+  digitalWrite(OE_PIN, LOW);
 
   leds.clear();
   if (VERBOSE) {
@@ -143,6 +147,11 @@ void initLedArray() {
   }
 }
 
+void enableLedArray(bool enable) {
+  digitalWrite(OE_PIN, enable ? HIGH : LOW);
+}
+#endif /*LED_ARRAY*/
+
 void setup() { 
   delay(500);
   Serial.begin(19200);
@@ -151,18 +160,26 @@ void setup() {
     Serial.println("\nBEGIN");
   }
 
+#ifdef EL_WIRES
   initWires();
+#endif /*EL_WIRES*/
+#ifdef LED_ARRAY
   initLedArray();
+#endif /*LED_ARRAY*/
 }
 
 void loop() {
+#ifdef EL_WIRES
   byte wireVals = (1 << (loopCnt % 8));
   writeAllWires(wireVals);
   if (VERBOSE) {
     Serial.println("wireVals: 0x" + String(wireVals, HEX));
   }
+#endif /*EL_WIRES*/
 
+#ifdef LED_ARRAY
   leds.run();
+#endif /*LED_ARRAY*/
 
   delay(100);
   loopCnt++;
