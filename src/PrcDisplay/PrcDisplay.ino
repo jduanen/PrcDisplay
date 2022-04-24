@@ -24,7 +24,7 @@
 #define EL_WIRES            1
 #define LED_ARRAY           1
 
-#define VERBOSE             1
+#define VERBOSE             0
 
 int loopCnt = 0;
 
@@ -154,9 +154,9 @@ void enableLedArray(bool enable) {
 
 void setup() { 
   delay(500);
-  Serial.begin(19200);
-  delay(500);
   if (VERBOSE) {
+    Serial.begin(19200);
+    delay(500);
     Serial.println("\nBEGIN");
   }
 
@@ -181,7 +181,6 @@ void loop() {
   leds.run();
 #endif /*LED_ARRAY*/
 
-  delay(100);
   loopCnt++;
   if (VERBOSE) {
     Serial.println("loopcnt: " + String(loopCnt));
