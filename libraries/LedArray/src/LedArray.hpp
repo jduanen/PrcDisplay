@@ -5,13 +5,16 @@
 */
 
 template<uint8_t Size>
-LedArray<Size>::LedArray(const uint8_t dataPin, const uint8_t srClkPin, const uint8_t rClkPin, const uint8_t numRows, const uint8_t numCols, const uint8_t numSRs, const int scrollSpeed) {
+LedArray<Size>::LedArray(uint8_t dataPin, uint8_t srClkPin, uint8_t rClkPin, uint8_t oePin, uint8_t numRows, uint8_t numCols, uint8_t numSRs, int scrollSpeed) {
     _stdWaitCycles = scrollSpeed;
     _waitCycles = _stdWaitCycles;
     _numRows = numRows;
     _numCols = numCols;
     _frameBufferPtr = new uint32_t[numRows];
-    _srPtr = new ShiftRegister74HC595<NUM_SR>(dataPin, srClkPin, rClkPin);
+    _srPtr = new ShiftRegister74HC595<Size>(dataPin, srClkPin, rClkPin);
+    _oePin = oePin;
+    pinMode(_oePin, OUTPUT);
+    digitalWrite(_oePin, LOW);  // start off enabled
 }
 
 template<uint8_t Size>
@@ -34,27 +37,17 @@ void LedArray<Size>::run() {
         _waitCycles = _stdWaitCycles;
         scrollMessage();
     }
+    if (_blinkRate > 0) {
+//        enableDisplay((_loopCount >> _blinkRate) & 1);
+    }
     scanDisplay();
     _loopCount++;
 }
 
-//// TODO add getFonts() -- return number and description of each font
-
-
 //// FIXME DRY this all up
 
-/*
 template<uint8_t Size>
-void LedArray<Size>::_message(String str, const char font) {
-    assert((font >= '0') && (font < ('0' + NUM_FONTS))); // Invalid font number selection
-    for (int i = 0; (i < str.length()); i++) {
-        _fontNums.concat(font);
-    }
-}
-*/
-
-template<uint8_t Size>
-void LedArray<Size>::message(String *strPtr, const char font) {
+void LedArray<Size>::message(String *strPtr, char font) {
     _fontNums = "";
     assert((font >= '0') && (font < ('0' + NUM_FONTS))); // Invalid font number selection
     for (int i = 0; (i < strPtr->length()); i++) {
@@ -65,7 +58,7 @@ void LedArray<Size>::message(String *strPtr, const char font) {
 }
 
 template<uint8_t Size>
-void LedArray<Size>::message(const char str[], const char font) {
+void LedArray<Size>::message(char str[], char font) {
     _fontNums = "";
     assert((font >= '0') && (font < ('0' + NUM_FONTS))); // Invalid font number selection
     for (int i = 0; (i < strlen(str)); i++) {
@@ -75,7 +68,7 @@ void LedArray<Size>::message(const char str[], const char font) {
 }
 
 template<uint8_t Size>
-void LedArray<Size>::appendMessage(String *strPtr, const char font) {
+void LedArray<Size>::appendMessage(String *strPtr, char font) {
     assert((font >= '0') && (font < ('0' + NUM_FONTS))); // Invalid font number selection
     for (int i = 0; (i < strPtr->length()); i++) {
         _fontNums.concat(font);
@@ -85,7 +78,7 @@ void LedArray<Size>::appendMessage(String *strPtr, const char font) {
 }
 
 template<uint8_t Size>
-void LedArray<Size>::appendMessage(const char str[], const char font) {
+void LedArray<Size>::appendMessage(char str[], char font) {
     assert((font >= '0') && (font < ('0' + NUM_FONTS))); // Invalid font number selection
     for (int i = 0; (i < strlen(str)); i++) {
         _fontNums.concat(font);
@@ -131,8 +124,8 @@ template<uint8_t Size>
 void LedArray<Size>::scanDisplay() {
     int rowSelect;
     // layout: [nc[3:0], rows[6:3]], [rows[2:0], cols[20:16]], [cols[15:8]], [cols[7:0]]
-    uint8_t srValues[_numRows][NUM_SR];
-    uint8_t clearLine[NUM_SR] = {0xFF, 0xFF, 0x1F, 0x00};
+    uint8_t srValues[_numRows][Size];
+    uint8_t clearLine[Size] = {0xFF, 0xFF, 0x1F, 0x00};
 
     // scan all of the FB's lines out to the display
     for (int i = 0; i < _numRows; i++) {
@@ -150,9 +143,20 @@ void LedArray<Size>::scanDisplay() {
 
 template<uint8_t Size>
 void LedArray<Size>::clearDisplay() {
-   uint8_t srValues[NUM_SR] = {0,};
+   uint8_t srValues[Size] = {0,};
 
     for (int i = 0; i < _numRows; i++) {
         _srPtr->setAll(srValues);
     }
+}
+
+template<uint8_t Size>
+void LedArray<Size>::enableDisplay(bool enable) {
+    digitalWrite(_oePin, (enable ? LOW : HIGH));
+    _displayEnabled = enable;
+}
+
+template<uint8_t Size>
+void LedArray<Size>::blinkDisplay(byte rate) {
+    _blinkRate = rate;
 }
