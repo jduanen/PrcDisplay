@@ -41,6 +41,8 @@ int loopCnt = 0;
 
 PCF8574 prcd = PCF8574(I2C_BASE_ADDR);
 
+byte lastWires = 0;
+
 void initWires() {
   prcd.pinMode(P0, OUTPUT, HIGH);
   prcd.pinMode(P1, OUTPUT, HIGH);
@@ -88,14 +90,14 @@ void writeAllWires(byte values) {
 #define NUM_ROWS            7
 #define NUM_COLS            21
 
-#define STD_WAIT            50
+#define STD_WAIT            35
 
 #define WIDE_FONT           '0'
 #define SKINNY_FONT         '1'
 #define VERY_SKINNY_FONT    '2'
 #define SYMBOLS_FONT        '3'
 
-LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, NUM_ROWS, NUM_COLS, NUM_SR, STD_WAIT);
+LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, OE_PIN, NUM_ROWS, NUM_COLS, NUM_SR, STD_WAIT);
 
 //// FIXME
 void initLedArray() {
@@ -111,9 +113,6 @@ void initLedArray() {
     Serial.println("]");
   }
 
-  pinMode(OE_PIN, OUTPUT);
-  digitalWrite(OE_PIN, LOW);
-
   leds.clear();
   if (VERBOSE) {
     Serial.println("Running Test #" + String(TEST_NUMBER));
@@ -128,6 +127,7 @@ void initLedArray() {
       leds.appendMessage("Very Skinny FONT; ", VERY_SKINNY_FONT);
       leds.appendMessage("Symbols FONT: ", WIDE_FONT);
       leds.appendMessage("ABCDEFGHIJKLMNOPQRSTU...", SYMBOLS_FONT);
+//      leds.blinkDisplay(9);
     break;
     case 2:
       leds.message(&msg, WIDE_FONT);
@@ -145,10 +145,6 @@ void initLedArray() {
       Serial.println("Error: Invalid Test Number: " + String(TEST_NUMBER));
       break;
   }
-}
-
-void enableLedArray(bool enable) {
-  digitalWrite(OE_PIN, enable ? HIGH : LOW);
 }
 #endif /*LED_ARRAY*/
 
@@ -170,14 +166,18 @@ void setup() {
 
 void loop() {
 #ifdef EL_WIRES
-  byte wireVals = (1 << (loopCnt % 8));
-  writeAllWires(wireVals);
-  if (VERBOSE) {
-    Serial.println("wireVals: 0x" + String(wireVals, HEX));
+  byte wireVals = (1 << ((loopCnt >> 8) % 8));
+  if (wireVals != lastWires) {
+    writeAllWires(wireVals);
+    lastWires = wireVals;
+    if (VERBOSE) {
+      Serial.println("wireVals: 0x" + String(wireVals, HEX));
+    }
   }
 #endif /*EL_WIRES*/
 
 #ifdef LED_ARRAY
+  leds.enableDisplay(true);
   leds.run();
 #endif /*LED_ARRAY*/
 
