@@ -8,7 +8,8 @@
 */
 
 // TODO
-//  * add blink mode option
+//  * fix blink display feature
+//  * add blink character feature (make it an attribute like fonts)
 
 #pragma once
 
@@ -25,7 +26,7 @@ class LedArray {
 public:
     String libVersion = LIB_VERSION;
 
-    LedArray(uint8_t dataPin, uint8_t srClkPin, uint8_t rClkPin, uint8_t oePin, uint8_t numRows, uint8_t numCols, uint8_t numSRs, int scrollSpeed);
+    LedArray(uint8_t dataPin, uint8_t srClkPin, uint8_t rClkPin, uint8_t oePin, uint8_t numRows, uint8_t numCols, int scrollSpeed);
 
     void clear();
     void fill(uint32_t val);
@@ -43,7 +44,6 @@ private:
 
     uint8_t _numRows;
     uint8_t _numCols;
-    int _numSRs;
 
     //// FIXME figure out how to handle this
     ShiftRegister74HC595<Size> *_srPtr;

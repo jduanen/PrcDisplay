@@ -5,7 +5,7 @@
 */
 
 template<uint8_t Size>
-LedArray<Size>::LedArray(uint8_t dataPin, uint8_t srClkPin, uint8_t rClkPin, uint8_t oePin, uint8_t numRows, uint8_t numCols, uint8_t numSRs, int scrollSpeed) {
+LedArray<Size>::LedArray(uint8_t dataPin, uint8_t srClkPin, uint8_t rClkPin, uint8_t oePin, uint8_t numRows, uint8_t numCols, int scrollSpeed) {
     _stdWaitCycles = scrollSpeed;
     _waitCycles = _stdWaitCycles;
     _numRows = numRows;
