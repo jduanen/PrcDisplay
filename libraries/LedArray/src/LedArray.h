@@ -8,7 +8,6 @@
 */
 
 // TODO
-//  * add OE pin to the constructor
 //  * add blink mode option
 
 #pragma once
@@ -17,8 +16,6 @@
 #include <ShiftRegister74HC595.h>
 #include "fonts.h"
 
-//// FIXME figure out how to handle this
-#define NUM_SR          4
 #define LIB_VERSION     "1.0"
 #define LONG_WAIT       1000
 
@@ -28,15 +25,17 @@ class LedArray {
 public:
     String libVersion = LIB_VERSION;
 
-    LedArray(const uint8_t dataPin, const uint8_t srClkPin, const uint8_t rClkPin, const uint8_t numRows, const uint8_t numCols, const uint8_t numSRs, const int scrollSpeed);
+    LedArray(uint8_t dataPin, uint8_t srClkPin, uint8_t rClkPin, uint8_t oePin, uint8_t numRows, uint8_t numCols, uint8_t numSRs, int scrollSpeed);
 
     void clear();
     void fill(uint32_t val);
     void run();
-    void message(const char str[], const char font);
-    void message(String *strPtr, const char font);
-    void appendMessage(const char str[], const char font);
-    void appendMessage(String *strPtr, const char font);
+    void message(char str[], char font);
+    void message(String *strPtr, char font);
+    void appendMessage(char str[], char font);
+    void appendMessage(String *strPtr, char font);
+    void enableDisplay(bool enable);
+    void blinkDisplay(byte rate);
 
 private:
     int _stdWaitCycles;
@@ -47,7 +46,7 @@ private:
     int _numSRs;
 
     //// FIXME figure out how to handle this
-    ShiftRegister74HC595<NUM_SR> *_srPtr;
+    ShiftRegister74HC595<Size> *_srPtr;
 
     // active high bitmap, row pixels start at the LSB, [0,0] is upper left corner
     uint32_t *_frameBufferPtr;
@@ -58,8 +57,11 @@ private:
     int _loopCount = 0;
     int _curChar = 0;
     uint8_t _curCol = 0;
+    bool _oePin;
+    bool _displayEnabled = true;
+    byte _blinkRate = 0;     // disabled
 
-//    void _message(String str, const char font);
+//    void _message(String str, char font);
     //void writeToFB(char *strPtr);
     void scrollMessage();
     void scanDisplay();
