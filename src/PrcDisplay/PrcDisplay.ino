@@ -18,28 +18,21 @@
 *
 ****************************************************************************/
 
-#define EL_WIRES            1
-#define LED_ARRAY           1
-#define WEB_INTERFACE       1
-
 #include <Arduino.h>
 
-#ifdef EL_WIRES
-#include <PCF8574.h>
-#endif /*EL_WIRES*/
-
-#ifdef LED_ARRAY
-#include <ShiftRegister74HC595.h>
-#include <LedArray.h>
-#endif /*LED_ARRAY*/
-
-#ifdef WEB_INTERFACE
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncElegantOTA.h>
 #include "wifi.h"
-#endif /*WEB_INTERFACE*/
+
+#include <PCF8574.h>
+
+#include <ShiftRegister74HC595.h>
+#include <LedArray.h>
+
+
+#define APP_VERSION     "1.0.0"
 
 #define VERBOSE             0
 
@@ -57,13 +50,10 @@ void println(String str) {
   }
 }
 
-#ifdef WEB_INTERFACE
 #define WEB_SERVER_PORT     80
 
 AsyncWebServer  server(WEB_SERVER_PORT);
-#endif /*WEB_INTERFACE*/
 
-#ifdef EL_WIRES
 #define I2C_BASE_ADDR       0x38    // PCF8574A
 //#define I2C_BASE_ADDR       0x20    // PCF8574
 #define READ_ADDR           0x4F
@@ -111,9 +101,7 @@ void writeAllWires(byte values) {
   prcd.digitalWriteAll(digitalInput);
   print("writeAllWires: 0x" +  String(values, HEX) + "; ");
 }
-#endif /*EL_WIRES*/
 
-#ifdef LED_ARRAY
 #define TEST_NUMBER         1   //// TMP TMP TMP
 
 #define DATA_PIN            14  // D5
@@ -179,7 +167,6 @@ void initLedArray() {
       break;
   }
 }
-#endif /*LED_ARRAY*/
 
 
 void setup() { 
@@ -188,7 +175,6 @@ void setup() {
   delay(500);
   Serial.println("\nBEGIN");
 
-#ifdef WEB_INTERFACE
   WiFi.mode(WIFI_STA);
   WiFi.begin(WLAN_SSID, WLAN_PASS);
   Serial.println("Connecting ");
@@ -207,22 +193,15 @@ void setup() {
   AsyncElegantOTA.begin(&server);
   server.begin();
   println("HTTP server started");
-#endif /*WEB_INTERFACE*/
 
-#ifdef EL_WIRES
   initWires();
-#endif /*EL_WIRES*/
 
-#ifdef LED_ARRAY
   initLedArray();
-#endif /*LED_ARRAY*/
 }
 
 void loop() {
-#ifdef WEB_INTERFACE
-#endif /*WEB_INTERFACE*/
+  //// web interface
 
-#ifdef EL_WIRES
   if (enableELwires) {
     byte wireVals = (1 << ((loopCnt >> 10) % 8));
     if (wireVals != lastWires) {
@@ -233,16 +212,10 @@ void loop() {
       }
     }
   }
-#endif /*EL_WIRES*/
 
-#ifdef LED_ARRAY
   if (enableLedArray) {
     leds.run();
   }
-#endif /*LED_ARRAY*/
 
   loopCnt++;
-  if (VERBOSE) {
-    //Serial.println("loopcnt: " + String(loopCnt));
-  }
 };
