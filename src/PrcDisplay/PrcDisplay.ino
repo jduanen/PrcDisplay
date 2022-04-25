@@ -97,7 +97,7 @@ void writeAllWires(byte values) {
 #define VERY_SKINNY_FONT    '2'
 #define SYMBOLS_FONT        '3'
 
-LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, OE_PIN, NUM_ROWS, NUM_COLS, NUM_SR, STD_WAIT);
+LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, OE_PIN, NUM_ROWS, NUM_COLS, STD_WAIT);
 
 //// FIXME
 void initLedArray() {
@@ -166,7 +166,7 @@ void setup() {
 
 void loop() {
 #ifdef EL_WIRES
-  byte wireVals = (1 << ((loopCnt >> 8) % 8));
+  byte wireVals = (1 << ((loopCnt >> 10) % 8));
   if (wireVals != lastWires) {
     writeAllWires(wireVals);
     lastWires = wireVals;
@@ -177,7 +177,6 @@ void loop() {
 #endif /*EL_WIRES*/
 
 #ifdef LED_ARRAY
-  leds.enableDisplay(true);
   leds.run();
 #endif /*LED_ARRAY*/
 
