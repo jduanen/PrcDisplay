@@ -7,6 +7,8 @@
 *
 * Notes:
 *  - I2C defaults: SDA=GPIO4 -> D2, SCL=GPIO5 -> D1
+*  - connect to http://<ipaddr> for web interface
+*  - connect to http://<ipaddr>/update for OTA update of firmware
 *
 * TODO
 *  - Add per-message blink option (using the SRs' OE bits)
@@ -16,17 +18,50 @@
 *
 ****************************************************************************/
 
-#include <Arduino.h>
-#include <PCF8574.h>
-#include <ShiftRegister74HC595.h>
-#include <LedArray.h>
-
 #define EL_WIRES            1
 #define LED_ARRAY           1
+#define WEB_INTERFACE       1
+
+#include <Arduino.h>
+
+#ifdef EL_WIRES
+#include <PCF8574.h>
+#endif /*EL_WIRES*/
+
+#ifdef LED_ARRAY
+#include <ShiftRegister74HC595.h>
+#include <LedArray.h>
+#endif /*LED_ARRAY*/
+
+#ifdef WEB_INTERFACE
+#include <ESP8266WiFi.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncElegantOTA.h>
+#include "wifi.h"
+#endif /*WEB_INTERFACE*/
 
 #define VERBOSE             0
 
 int loopCnt = 0;
+
+void print(String str) {
+  if (VERBOSE) {
+    Serial.print(str);
+  }
+}
+
+void println(String str) {
+  if (VERBOSE) {
+    Serial.println(str);
+  }
+}
+
+#ifdef WEB_INTERFACE
+#define WEB_SERVER_PORT     80
+
+AsyncWebServer  server(WEB_SERVER_PORT);
+#endif /*WEB_INTERFACE*/
 
 #ifdef EL_WIRES
 #define I2C_BASE_ADDR       0x38    // PCF8574A
@@ -72,9 +107,7 @@ void writeAllWires(byte values) {
   digitalInput.p0 = bitRead(values, 0);
 
   prcd.digitalWriteAll(digitalInput);
-  if (VERBOSE) {
-    Serial.print("writeAllWires: 0x" +  String(values, HEX) + "; ");
-  }
+  print("writeAllWires: 0x" +  String(values, HEX) + "; ");
 }
 #endif /*EL_WIRES*/
 
@@ -103,20 +136,16 @@ LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, OE_PIN, NUM_ROWS, NUM_COLS,
 void initLedArray() {
   String msg = String("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
 
-  if (VERBOSE) {
-    Serial.println("Fonts Version: " + String(FONTS_VERSION));
-    Serial.println("Number of Fonts: " + String(NUM_FONTS));
-    Serial.print("Font Names: [");
-    for (int i = 0; (i < NUM_FONTS); i++) {
-      Serial.print(fontNames[i] + String(", "));
-    }
-    Serial.println("]");
+  println("Fonts Version: " + String(FONTS_VERSION));
+  println("Number of Fonts: " + String(NUM_FONTS));
+  print("Font Names: [");
+  for (int i = 0; (i < NUM_FONTS); i++) {
+    print(fontNames[i] + String(", "));
   }
+  println("]");
 
   leds.clear();
-  if (VERBOSE) {
-    Serial.println("Running Test #" + String(TEST_NUMBER));
-  }
+  println("Running Test #" + String(TEST_NUMBER));
   switch (TEST_NUMBER) {
     case 0:
       leds.message(&msg, SKINNY_FONT);
@@ -142,29 +171,53 @@ void initLedArray() {
       leds.message(&msg, SYMBOLS_FONT);
     break;
     default:
-      Serial.println("Error: Invalid Test Number: " + String(TEST_NUMBER));
+      println("Error: Invalid Test Number: " + String(TEST_NUMBER));
       break;
   }
 }
 #endif /*LED_ARRAY*/
 
+
 void setup() { 
   delay(500);
-  if (VERBOSE) {
-    Serial.begin(19200);
+  Serial.begin(19200);
+  delay(500);
+  Serial.println("\nBEGIN");
+
+#ifdef WEB_INTERFACE
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WLAN_SSID, WLAN_PASS);
+  Serial.println("Connecting ");
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.println("\nBEGIN");
+    print(".");
   }
+  Serial.println("\nConnected to " + String(WLAN_SSID));
+  Serial.println("IP address: " + WiFi.localIP().toString());
+
+  //// FIXME
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "PrcDisplay");
+  });
+
+  AsyncElegantOTA.begin(&server);
+  server.begin();
+  println("HTTP server started");
+#endif /*WEB_INTERFACE*/
 
 #ifdef EL_WIRES
   initWires();
 #endif /*EL_WIRES*/
+
 #ifdef LED_ARRAY
   initLedArray();
 #endif /*LED_ARRAY*/
 }
 
 void loop() {
+#ifdef WEB_INTERFACE
+#endif /*WEB_INTERFACE*/
+
 #ifdef EL_WIRES
   byte wireVals = (1 << ((loopCnt >> 10) % 8));
   if (wireVals != lastWires) {
@@ -182,6 +235,6 @@ void loop() {
 
   loopCnt++;
   if (VERBOSE) {
-    Serial.println("loopcnt: " + String(loopCnt));
+    //Serial.println("loopcnt: " + String(loopCnt));
   }
 };
