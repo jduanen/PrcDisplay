@@ -76,6 +76,8 @@ AsyncWebServer  server(WEB_SERVER_PORT);
 
 PCF8574 prcd = PCF8574(I2C_BASE_ADDR);
 
+bool enableELwires = true;
+
 byte lastWires = 0;
 
 void initWires() {
@@ -131,6 +133,8 @@ void writeAllWires(byte values) {
 #define SYMBOLS_FONT        '3'
 
 LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, OE_PIN, NUM_ROWS, NUM_COLS, STD_WAIT);
+
+bool enableLedArray = true;
 
 //// FIXME
 void initLedArray() {
@@ -219,18 +223,22 @@ void loop() {
 #endif /*WEB_INTERFACE*/
 
 #ifdef EL_WIRES
-  byte wireVals = (1 << ((loopCnt >> 10) % 8));
-  if (wireVals != lastWires) {
-    writeAllWires(wireVals);
-    lastWires = wireVals;
-    if (VERBOSE) {
-      Serial.println("wireVals: 0x" + String(wireVals, HEX));
+  if (enableELwires) {
+    byte wireVals = (1 << ((loopCnt >> 10) % 8));
+    if (wireVals != lastWires) {
+      writeAllWires(wireVals);
+      lastWires = wireVals;
+      if (VERBOSE) {
+        Serial.println("wireVals: 0x" + String(wireVals, HEX));
+      }
     }
   }
 #endif /*EL_WIRES*/
 
 #ifdef LED_ARRAY
-  leds.run();
+  if (enableLedArray) {
+    leds.run();
+  }
 #endif /*LED_ARRAY*/
 
   loopCnt++;
