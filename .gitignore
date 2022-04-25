@@ -34,3 +34,5 @@
 # Kicad schematic backups and caches
 *.sch-bak
 *-cache.lib
+
+wifi.h
