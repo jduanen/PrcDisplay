@@ -15,7 +15,6 @@
 
 #include <Arduino.h>
 #include <ShiftRegister74HC595.h>
-#include "fonts.h"
 
 #define LIB_VERSION     "1.0"
 #define LONG_WAIT       1000
