@@ -59,8 +59,6 @@ void println(String str) {
 
 #define NUM_EL_WIRES        8
 
-#define TEST_NUMBER         1   //// TMP TMP TMP
-
 #define DATA_PIN            14  // D5
 #define SRCLK_PIN           12  // D6
 #define RCLK_PIN            13  // D7
@@ -80,6 +78,9 @@ void println(String str) {
 //#define SCL_PIN             1
 //#define SDA_PIN             2
 
+#define STARTUP_MSG         "Hello World!"
+#define STARTUP_FONT        SKINNY_FONT
+
 
 bool enableELwires = true;
 bool enableLedArray = true;
@@ -96,6 +97,8 @@ byte lastWires = 0;
 
 String fontNamesList = String();
 
+String ledMessage = STARTUP_MSG;
+
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
@@ -108,16 +111,16 @@ const char index_html[] PROGMEM = R"rawliteral(
     text-align: center;
   }
   h1 {
-    font-size: 1.8rem;
+    font-size: 1.9rem;
     color: white;
   }
   h2{
-    font-size: 1.5rem;
+    font-size: 1.7rem;
     font-weight: bold;
     color: #143642;
   }
   h3{
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     font-weight: bold;
     color: #143642;
   }
@@ -139,39 +142,65 @@ const char index_html[] PROGMEM = R"rawliteral(
     padding-top:10px;
     padding-bottom:20px;
   }
-  .button {
-    padding: 15px 50px;
-    font-size: 24px;
-    text-align: center;
-    outline: none;
-    color: #fff;
-    background-color: #0f8b8d;
-    border: none;
-    border-radius: 5px;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-tap-highlight-color: rgba(0,0,0,0);
-   }
-   /*.button:hover {background-color: #0f8b8d}*/
-   .button:active {
-     background-color: #0f8b8d;
-     box-shadow: 2 2px #CDCDCD;
-     transform: translateY(2px);
-   }
-   .staticState {
-     font-size: 1.2rem;
-     color:black;
-     font-weight: bold;
-   }
-   .state {
-     font-size: 1.2rem;
-     color:#8c8c8c;
-     font-weight: bold;
-   }
+  .staticState {
+    font-size: 1.2rem;
+    color:black;
+    font-weight: bold;
+  }
+  .state {
+    font-size: 1.2rem;
+    color:#8c8c8c;
+    font-weight: bold;
+  }
+  .switch {
+    position: relative; 
+    display: inline-block; 
+    width: 60px; 
+    height: 34px;
+    margin-left: 10px;
+  } 
+  .switch input {
+    display: none
+  }
+  .slider {
+    position: absolute; 
+    top: 0; left: 0; right: 0; bottom: 0; 
+    background-color: #ccc; 
+    border-radius: 25px
+  }
+  .slider:before {
+    position: absolute; 
+    content: ""; 
+    height: 26px; 
+    width: 26px; 
+    left: 4px; 
+    bottom: 4px; 
+    background-color: #fff; 
+    -webkit-transition: .4s; 
+    transition: .4s;
+    border-radius: 25px;
+  }
+  .vertical-center {
+    font-size: 1.2rem;
+    color:#8c8c8c;
+    font-weight: bold;
+  }
+  .center {
+    font-size: 1.2rem;
+    color:#8c8c8c;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  input:checked+.slider {
+    background-color: #b30000;
+  }
+  input:checked+.slider:before {
+    -webkit-transform: translateX(26px);
+    -ms-transform: translateX(26px); 
+    transform: translateX(26px);
+  }
   </style>
 <title>PrcDisplay Web Server</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -179,7 +208,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 </head>
 <body>
   <div class="topnav">
-    <h1>PrcDisplay WebSocket Server</h1>
+    <h1>PrcDisplay Web Server</h1>
   </div>
   <div class="content">
     <div class="card">
@@ -197,12 +226,31 @@ const char index_html[] PROGMEM = R"rawliteral(
       <h2>Controls</h2>
       <h3>System</h3>
       <p class="state">Update Firmware: <a href="update">Update</a></p>
+
       <h3>LED Array</h3>
-      <p class="state">LED Array: <span id="ledState">%LED_STATE%</span> 
-      <button id="button" class="button">Toggle</button></p>
+      <div class="center">
+        State: &nbsp <span id="ledState" style="color:blue"></span>
+        <label class="switch">
+          <input type="checkbox" onchange="toggleCheckbox(this)" id="led">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="vertical-center">
+        Message:
+        <input type="text" id="ledMessage">
+        <input type="button" id="ledMessageSend" value="Send">
+      </div>
+
+
       <h3>EL Wires</h3>
-      <p class="state">EL Wires: <span id="elState">%EL_STATE%</span> 
-      <button id="button" class="button">Toggle</button></p>
+      <div class ="center">
+        State: &nbsp <span id="elState" style="color:blue"></span>
+        <label class="switch">
+          <input type="checkbox" onchange="toggleCheckbox(this)" id="el">
+            <span class="slider"></span>
+        </label>
+      </div>
+
     </div>
   </div>
 <script>
@@ -218,31 +266,72 @@ const char index_html[] PROGMEM = R"rawliteral(
   }
   function onOpen(event) {
     console.log('Connection opened');
+    initView();
   }
   function onClose(event) {
     console.log('Connection closed');
     setTimeout(initWebSocket, 2000);
   }
-  function onMessage(event) {
-    var state;
-    console.log('event: ', event);
-    if (event.data == "1"){
-      state = "ON";
-    }
-    else{
-      state = "OFF";
-    }
-    document.getElementById('ledState').innerHTML = state;
-  }
   function onLoad(event) {
     initWebSocket();
-    initButton();
   }
-  function initButton() {
-    document.getElementById('button').addEventListener('click', toggle);
+  function initView() {
+    websocket.send('query');
+    document.getElementById('ledMessageSend').addEventListener("click", setLedMsg);
   }
-  function toggle(){
-    websocket.send('toggle');
+  function setLedMsg() {
+    var msg = "msg: " + document.getElementById('ledMessage').value;
+    console.log('Send LED Msg: ' + msg);
+    websocket.send(msg);
+  }
+  function onMessage(event) {
+    var state;
+    var elem;
+    const msgObj = JSON.parse(event.data);
+    console.log('msgObj: ', msgObj);
+
+    elem = document.getElementById('ledState');
+    if (msgObj.led == "1"){
+      state = "ON";
+    } else {
+      state = "OFF";
+    }
+    elem.innerHTML = state;
+
+    elem = document.getElementById('elState');
+    if (msgObj.el == "1"){
+      state = "ON";
+    } else {
+      state = "OFF";
+    }
+    elem.innerHTML = state;
+
+    elem = document.getElementById('ledMessage');
+    elem.value = escapeHTML(msgObj.msg);
+  }
+  function setCheckbox(element, state) {
+    console.log("Set Checkbox");
+    console.log(element.id);
+    console.log(state);
+    document.getElementById(element.id+"State").innerHTML = state;
+  }
+  function toggleCheckbox(element) {
+    console.log(element.id);
+    websocket.send(element.id);
+    if (element.checked){
+        document.getElementById(element.id+"State").innerHTML = "ON";
+    }
+    else {
+        document.getElementById(element.id+"State").innerHTML = "OFF"; 
+    }
+  }
+  function escapeHTML(s) {
+    return s.replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/'/g, '&apos;')
+        .replace(/"/g, '&quot;')
+        .replace(/\//g, '&sol;');
   }
 </script>
 </body>
@@ -250,17 +339,36 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 
 void notifyClients() {
-  ws.textAll(String(enableLedArray));
+  String msg = "";
+  msg += "{\"led\": " + String(enableLedArray);
+  msg += ", \"el\": " + String(enableELwires);
+  msg += ", \"msg\": \"" + ledMessage + "\"}";
+  Serial.println("MSG: " + msg);
+  ws.textAll(msg);
 }
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
-    if (strcmp((char*)data, "toggle") == 0) {
+    String s = String((char *)data);
+    if (s.equals("led")) {
+      Serial.println("WS: toggle LED");
       enableLedArray = !enableLedArray;
-      notifyClients();
+    } else if (s.equals("el")) {
+      Serial.println("WS: toggle EL");
+      enableELwires = !enableELwires;
+    } else if (s.equals("query")) {
+      Serial.println("WS: query");
+    } else if (s.startsWith("msg: ")) {\
+      ledMessage = s.substring(5);
+      ledMessage.trim();
+      Serial.println("WS: msg: " + ledMessage);
+      //// FIXME
+      int ledFont = SKINNY_FONT;
+      leds.message(&ledMessage, ledFont);
     }
+    notifyClients();
   }
 }
 
@@ -357,35 +465,9 @@ void initLedArray() {
   println("Font Names: [" + fontNamesList + "]");
 
   leds.clear();
-  println("Running Test #" + String(TEST_NUMBER));
-  switch (TEST_NUMBER) {
-    case 0:
-      leds.message(&msg, SKINNY_FONT);
-    break;
-    case 1:
-      leds.message("Wide FONT; ", WIDE_FONT);
-      leds.appendMessage("Skinny FONT; ", SKINNY_FONT);
-      leds.appendMessage("Very Skinny FONT; ", VERY_SKINNY_FONT);
-      leds.appendMessage("Symbols FONT: ", WIDE_FONT);
-      leds.appendMessage("ABCDEFGHIJKLMNOPQRSTU...", SYMBOLS_FONT);
-//      leds.blinkDisplay(9);
-    break;
-    case 2:
-      leds.message(&msg, WIDE_FONT);
-    break;
-    case 3:
-      leds.message(&msg, SKINNY_FONT);
-    break;
-    case 4:
-      leds.message(&msg, VERY_SKINNY_FONT);
-    break;
-    case 5:
-      leds.message(&msg, SYMBOLS_FONT);
-    break;
-    default:
-      println("Error: Invalid Test Number: " + String(TEST_NUMBER));
-      break;
-  }
+  ledMessage = STARTUP_MSG;
+  println("Startup message: " + ledMessage);
+  leds.message(&ledMessage, STARTUP_FONT);
 }
 
 void setup() { 
@@ -442,6 +524,7 @@ void loop() {
     }
   }
 
+  leds.enableDisplay(enableLedArray);
   if (enableLedArray) {
     leds.run();
   }
