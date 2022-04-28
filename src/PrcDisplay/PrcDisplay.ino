@@ -282,7 +282,6 @@ const char index_html[] PROGMEM = R"rawliteral(
   }
   function initView() {
     var jsonMsg = JSON.stringify({"msgType": "query"});
-    console.log("InitView: " + jsonMsg);
     websocket.send(jsonMsg);
     document.getElementById('ledMessageSend').addEventListener("click", setLedMsg);
     document.getElementById('ledMessageAppend').addEventListener("click", appendLedMsg);
@@ -299,13 +298,11 @@ const char index_html[] PROGMEM = R"rawliteral(
   function setLedMsg() {
     var fontNum = document.getElementById('fonts').value;
     var jsonMsg = JSON.stringify({"msgType": "ledMsg", "mode": "set", "fontNum": parseInt(fontNum), "text": document.getElementById('ledMessage').value});
-    console.log("Set LED Msg: " + jsonMsg);
     websocket.send(jsonMsg);
   }
   function appendLedMsg() {
     var fontNum = document.getElementById('fonts').value;
     var jsonMsg = JSON.stringify({"msgType": "ledMsg", "mode": "append", "fontNum": parseInt(fontNum), "text": document.getElementById('ledMessage').value});
-    console.log('Append LED Msg: ' + jsonMsg);
     websocket.send(jsonMsg);
   }
   function onMessage(event) {
@@ -334,13 +331,9 @@ const char index_html[] PROGMEM = R"rawliteral(
     elem.value = escapeHTML(msgObj.msg);
   }
   function setCheckbox(element, state) {
-    console.log("Set Checkbox");
-    console.log(element.id);
-    console.log(state);
     document.getElementById(element.id+"State").innerHTML = state;
   }
   function toggleCheckbox(element) {
-    console.log(element.id);
     var jsonMsg = JSON.stringify({"msgType": element.id, "state": element.checked});
     websocket.send(jsonMsg);
     if (element.checked){
