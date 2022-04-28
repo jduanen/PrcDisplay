@@ -241,9 +241,11 @@ const char index_html[] PROGMEM = R"rawliteral(
       <div class="vertical-center">
         Message:
         <input type="text" id="ledMessage">
+        <br>
         <input type="button" id="ledMessageSend" value="Send">
+        <input type="button" id="ledMessageAppend" value="Append">
+        <select id="fonts" name="fonts"></select>
       </div>
-
 
       <h3>EL Wires</h3>
       <div class ="center">
@@ -283,16 +285,26 @@ const char index_html[] PROGMEM = R"rawliteral(
     console.log("InitView: " + jsonMsg);
     websocket.send(jsonMsg);
     document.getElementById('ledMessageSend').addEventListener("click", setLedMsg);
+    document.getElementById('ledMessageAppend').addEventListener("click", appendLedMsg);
+    var select = document.getElementById('fonts');
+    var fontNames = "%FONT_NAMES%";
+    var fontNamesArr = fontNames.split(',');
+    for (var i = 0; i < fontNamesArr.length; i++) {
+      var opt = document.createElement('option');
+      opt.value = i;
+      opt.innerHTML = fontNamesArr[i];
+      select.appendChild(opt);
+    }
   }
   function setLedMsg() {
-    var fontNum = 0;
-    var jsonMsg = JSON.stringify({"msgType": "ledMsg", "mode": "set", "font": fontNum, "text": document.getElementById('ledMessage').value});
+    var fontNum = document.getElementById('fonts').value;
+    var jsonMsg = JSON.stringify({"msgType": "ledMsg", "mode": "set", "fontNum": parseInt(fontNum), "text": document.getElementById('ledMessage').value});
     console.log("Set LED Msg: " + jsonMsg);
     websocket.send(jsonMsg);
   }
   function appendLedMsg() {
-    var fontNum = 0;
-    var jsonMsg = JSON.stringify({"msgType": "ledMsg", "mode": "append", "font": fontNum, "text": document.getElementById('ledMessage').value});
+    var fontNum = document.getElementById('fonts').value;
+    var jsonMsg = JSON.stringify({"msgType": "ledMsg", "mode": "append", "fontNum": parseInt(fontNum), "text": document.getElementById('ledMessage').value});
     console.log('Append LED Msg: ' + jsonMsg);
     websocket.send(jsonMsg);
   }
@@ -380,14 +392,11 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       String mode = String(doc["mode"]);
       ledMessage = String(doc["text"]);
       ledMessage.trim();
+      int f = doc["fontNum"];
       if (mode.equals("set")) {
-        //// FIXME
-        int ledFont = SKINNY_FONT;
-        leds.message(&ledMessage, ledFont);
+        leds.message(&ledMessage, ('0' + f));
       } else if (mode.equals("append")) {
-        //// FIXME
-        int ledFont = SKINNY_FONT;
-        leds.appendMessage(&ledMessage, ledFont);
+        leds.appendMessage(&ledMessage, ('0' + f));
       } else {
         Serial.println("Error: unknown mode type: " + mode);
         return;
