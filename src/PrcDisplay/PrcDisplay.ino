@@ -19,6 +19,7 @@
 ****************************************************************************/
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
@@ -37,6 +38,8 @@
 #define VERBOSE             0
 
 int loopCnt = 0;
+
+StaticJsonDocument<200> doc;
 
 void print(String str) {
   if (VERBOSE) {
@@ -276,13 +279,22 @@ const char index_html[] PROGMEM = R"rawliteral(
     initWebSocket();
   }
   function initView() {
-    websocket.send('query');
+    var jsonMsg = JSON.stringify({"msgType": "query"});
+    console.log("InitView: " + jsonMsg);
+    websocket.send(jsonMsg);
     document.getElementById('ledMessageSend').addEventListener("click", setLedMsg);
   }
   function setLedMsg() {
-    var msg = "msg: " + document.getElementById('ledMessage').value;
-    console.log('Send LED Msg: ' + msg);
-    websocket.send(msg);
+    var fontNum = 0;
+    var jsonMsg = JSON.stringify({"msgType": "ledMsg", "mode": "set", "font": fontNum, "text": document.getElementById('ledMessage').value});
+    console.log("Set LED Msg: " + jsonMsg);
+    websocket.send(jsonMsg);
+  }
+  function appendLedMsg() {
+    var fontNum = 0;
+    var jsonMsg = JSON.stringify({"msgType": "ledMsg", "mode": "append", "font": fontNum, "text": document.getElementById('ledMessage').value});
+    console.log('Append LED Msg: ' + jsonMsg);
+    websocket.send(jsonMsg);
   }
   function onMessage(event) {
     var state;
@@ -317,7 +329,8 @@ const char index_html[] PROGMEM = R"rawliteral(
   }
   function toggleCheckbox(element) {
     console.log(element.id);
-    websocket.send(element.id);
+    var jsonMsg = JSON.stringify({"msgType": element.id, "state": element.checked});
+    websocket.send(jsonMsg);
     if (element.checked){
         document.getElementById(element.id+"State").innerHTML = "ON";
     }
@@ -343,7 +356,6 @@ void notifyClients() {
   msg += "{\"led\": " + String(enableLedArray);
   msg += ", \"el\": " + String(enableELwires);
   msg += ", \"msg\": \"" + ledMessage + "\"}";
-  Serial.println("MSG: " + msg);
   ws.textAll(msg);
 }
 
@@ -351,22 +363,35 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
-    String s = String((char *)data);
-    if (s.equals("led")) {
-      Serial.println("WS: toggle LED");
+    DeserializationError error = deserializeJson(doc, (char *)data);
+    if (error) {
+      Serial.print("deserializeJson() failed: ");
+      Serial.println(error.f_str());
+      return;
+    }
+    String msgType = String(doc["msgType"]);
+    if (msgType.equals("led")) {
       enableLedArray = !enableLedArray;
-    } else if (s.equals("el")) {
-      Serial.println("WS: toggle EL");
+    } else if (msgType.equals("el")) {
       enableELwires = !enableELwires;
-    } else if (s.equals("query")) {
-      Serial.println("WS: query");
-    } else if (s.startsWith("msg: ")) {\
-      ledMessage = s.substring(5);
+    } else if (msgType.equals("query")) {
+      // NOP
+    } else if (msgType.equals("ledMsg")) {
+      String mode = String(doc["mode"]);
+      ledMessage = String(doc["text"]);
       ledMessage.trim();
-      Serial.println("WS: msg: " + ledMessage);
-      //// FIXME
-      int ledFont = SKINNY_FONT;
-      leds.message(&ledMessage, ledFont);
+      if (mode.equals("set")) {
+        //// FIXME
+        int ledFont = SKINNY_FONT;
+        leds.message(&ledMessage, ledFont);
+      } else if (mode.equals("append")) {
+        //// FIXME
+        int ledFont = SKINNY_FONT;
+        leds.appendMessage(&ledMessage, ledFont);
+      } else {
+        Serial.println("Error: unknown mode type: " + mode);
+        return;
+      }
     }
     notifyClients();
   }
@@ -376,10 +401,10 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
              void *arg, uint8_t *data, size_t len) {
   switch (type) {
     case WS_EVT_CONNECT:
-      Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+      printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
       break;
     case WS_EVT_DISCONNECT:
-      Serial.printf("WebSocket client #%u disconnected\n", client->id());
+      printf("WebSocket client #%u disconnected\n", client->id());
       break;
     case WS_EVT_DATA:
       handleWebSocketMessage(arg, data, len);
