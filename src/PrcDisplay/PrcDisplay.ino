@@ -28,8 +28,10 @@
 #include "wifi.h"
 
 #include <PCF8574.h>
+#include "patterns.h"
 
 #include <ShiftRegister74HC595.h>
+#include "fonts.h"
 #include <LedArray.h>
 
 
@@ -37,9 +39,6 @@
 
 #define VERBOSE             0
 
-int loopCnt = 0;
-
-StaticJsonDocument<200> doc;
 
 void print(String str) {
   if (VERBOSE) {
@@ -61,6 +60,14 @@ void println(String str) {
 #define WRITE_ADDR          0x4E
 
 #define NUM_EL_WIRES        8
+
+#define DEF_PATTERN         0
+#define DEF_WIRE_SPEED      0
+
+#define UNUSED_ANALOG       A0
+
+#define DELAY_INTERVAL      10  // baseDelay is to be multiplied by 10msec
+#define RAND_PATT_DELAY     10  // baseDelay for the random pattern case -- 10msec
 
 #define DATA_PIN            14  // D5
 #define SRCLK_PIN           12  // D6
@@ -85,6 +92,8 @@ void println(String str) {
 #define STARTUP_FONT        SKINNY_FONT
 
 
+int loopCnt = 0;
+
 bool enableELwires = true;
 bool enableLedArray = true;
 const int ledPin = 2;
@@ -92,11 +101,17 @@ const int ledPin = 2;
 AsyncWebServer  server(WEB_SERVER_PORT);
 AsyncWebSocket  ws("/ws");
 
+StaticJsonDocument<200> doc;
+
 PCF8574 prcd = PCF8574(I2C_BASE_ADDR);
 
-LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, OE_PIN, NUM_ROWS, NUM_COLS, STD_WAIT);
-
+uint16_t selection = DEF_PATTERN;
+uint16_t lastSelection = DEF_PATTERN;
+uint32_t wireSpeed = DEF_WIRE_SPEED;
+uint32_t lastWireSpeed = DEF_WIRE_SPEED;
 byte lastWires = 0;
+
+LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, OE_PIN, NUM_ROWS, NUM_COLS, STD_WAIT);
 
 String fontNamesList = String();
 
@@ -432,7 +447,7 @@ String processor(const String& var){
   } else if (var == "RSSI") {
     return (String(WiFi.RSSI()));
   } else if (var == "FONTS_VERSION") {
-    return (FONTS_VERSION);
+    return (leds.libVersion);
   } else if (var == "NUMBER_OF_FONTS") {
     return (String(NUM_FONTS));
   } else if (var == "FONT_NAMES") {
@@ -459,6 +474,9 @@ void initWires() {
   for (int wire = 0; (wire < NUM_EL_WIRES); wire++) {
     prcd.digitalWrite(wire, HIGH);
   }
+
+  // use floating input as source of randomness
+  randomSeed(analogRead(UNUSED_ANALOG));
 }
 
 void writeAllWires(byte values) { 
@@ -477,11 +495,48 @@ void writeAllWires(byte values) {
   print("writeAllWires: 0x" +  String(values, HEX) + "; ");
 }
 
+void elWiresRun() {
+  int i, randEnbs, delayTime;
+  Pattern *seqPtr;
+
+  Serial.print("Pattern Selection: ");    //// TMP TMP TMP
+  Serial.println(selection, DEC);  //// TMP TMP TMP
+
+  seqPtr = sequences[selection];
+  if ((seqPtr->enables == 0) && (seqPtr->baseDelay == 0x00)) {
+    randEnbs = random(0, 255);
+    delayTime = wireSpeed + RAND_PATT_DELAY;
+    Serial.println("Pattern: 0x" + String(randEnbs, HEX) + ", Delay: " + String(delayTime));
+    for (i = 0; (i < NUM_EL_WIRES); i++) {
+      digitalWrite((i + 2), ((randEnbs >> i) & 0x01));
+    }
+    delay(delayTime);  //// FIXME don't do delays, look at loopcount instead
+  } else {
+    // loop over sequence
+    while (!((seqPtr->enables == 0) && (seqPtr->baseDelay == 0x00))) {
+      if (selection != lastSelection) {
+        lastSelection = selection;
+        break;
+      }
+      if (wireSpeed != lastWireSpeed) {
+        lastWireSpeed = wireSpeed;
+        break;
+      }
+      delayTime = (seqPtr->baseDelay * DELAY_INTERVAL) + wireSpeed;
+      Serial.println("Pattern: 0x" + String(seqPtr->enables, HEX) + ", Delay: " + String(delayTime));
+      for (i = 0; (i < NUM_EL_WIRES); i++) {
+        digitalWrite((i + 2), ((seqPtr->enables >> i) & 0x01));
+      }
+      delay(delayTime);  //// FIXME don't do delays, look at loopcount instead
+      seqPtr++;
+    }
+  }
+}
+
+
 //// FIXME
 void initLedArray() {
-  String msg = String("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
-
-  println("Fonts Version: " + String(FONTS_VERSION));
+  println("Fonts Version: " + leds.libVersion);
   println("Number of Fonts: " + String(NUM_FONTS));
   for (int i = 0; (i < NUM_FONTS); i++) {
     if (i > 0) {
@@ -541,14 +596,7 @@ void loop() {
   digitalWrite(ledPin, enableLedArray);
 
   if (enableELwires) {
-    byte wireVals = (1 << ((loopCnt >> 10) % 8));
-    if (wireVals != lastWires) {
-      writeAllWires(wireVals);
-      lastWires = wireVals;
-      if (VERBOSE) {
-        Serial.println("wireVals: 0x" + String(wireVals, HEX));
-      }
-    }
+    elWiresRun();
   }
 
   leds.enableDisplay(enableLedArray);
