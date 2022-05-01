@@ -281,7 +281,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         Message:
         <input type="text" id="ledMessage">
         <br>
-        <input type="button" id="ledMessageSend" value="Send">
+        <input type="button" id="ledMessageSet" value="Set">
         <input type="button" id="ledMessageAppend" value="Append">
         <select id="fonts" name="fonts"></select>
       </div>
@@ -299,7 +299,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         <select id="sequenceNumber" name="sequenceNumber" onchange="setSequence()"></select>
         <br>
         Sequence Speed:
-        <input type="range", id="sequenceSpeed", min="1", max="100", value="50" onchange="setSequence()"><span id="speed"></span>
+        <input type="range", id="sequenceSpeed", min="1", max="100", value="50" onchange="setSequence()"> &nbsp <span id="speed"></span>
       </div>
     </div>
   </div>
@@ -328,7 +328,7 @@ const char index_html[] PROGMEM = R"rawliteral(
   function initView() {
     var jsonMsg = JSON.stringify({"msgType": "query"});
     websocket.send(jsonMsg);
-    document.getElementById('ledMessageSend').addEventListener("click", setLedMsg);
+    document.getElementById('ledMessageSet').addEventListener("click", setLedMsg);
     document.getElementById('ledMessageAppend').addEventListener("click", appendLedMsg);
     var select = document.getElementById('fonts');
     var fontNames = "%FONT_NAMES%";
@@ -387,6 +387,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
     elem = document.getElementById('sequenceSpeed');
     elem.value = msgObj.sequenceSpeed;
+    document.getElementById("speed").innerHTML = msgObj.sequenceSpeed;
   }
   function setCheckbox(element, state) {
     document.getElementById(element.id+"State").innerHTML = state;
@@ -408,11 +409,10 @@ const char index_html[] PROGMEM = R"rawliteral(
     var jsonMsg = JSON.stringify({"msgType": "sequence", sequenceNumber: seqNum, sequenceSpeed: seqSpeed});
     console.log("setSequence: " + jsonMsg);
     websocket.send(jsonMsg);
-    document.getElementById("speed").innerHTML = seqSpeed;
   }
   function saveConfiguration() {
     var ssid = document.getElementById("ssid").value;
-    var passwd = document.getElementById("passwd").value;
+    var passwd = document.getElementById("password").value;
     console.log("SC: " + ssid + ", " + passwd);
     var jsonMsg = JSON.stringify({"msgType": "saveConf", "ssid": ssid, "passwd": passwd});
     console.log("Save configuration: " + jsonMsg);
@@ -475,6 +475,9 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     } else if (msgType.equals("sequence")) {
       sequenceNumber = doc["sequenceNumber"];
       sequenceSpeed = doc["sequenceSpeed"];
+    } else if (msgType.equals("saveConf")) {
+      //// TODO build JSON with all the state -- ssid, passwd, ledState, ledMsg, elState, sequenceNumber, sequenceSpeed
+      ////       and write it to the config file 
     } else {
       Serial.println("Error: unknown message type: " + msgType);
       return;
@@ -629,6 +632,8 @@ void setup() {
   //// TMP TMP TMP
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
+
+  //// TODO look for config file and initialize values from it if it exists
   
   WiFi.mode(WIFI_STA);
   WiFi.begin(WLAN_SSID, WLAN_PASS);
