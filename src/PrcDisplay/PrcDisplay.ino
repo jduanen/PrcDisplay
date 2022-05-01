@@ -299,7 +299,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         <select id="sequenceNumber" name="sequenceNumber" onchange="setSequence()"></select>
         <br>
         Sequence Speed:
-        <input type="range", id="sequenceSpeed", min="1", max="100", value="50" onchange="setSequence()"><p><span id="speed"></span><p>
+        <input type="range", id="sequenceSpeed", min="1", max="100", value="50" onchange="setSequence()"><span id="speed"></span>
       </div>
     </div>
   </div>
@@ -383,10 +383,10 @@ const char index_html[] PROGMEM = R"rawliteral(
     elem.value = escapeHTML(msgObj.msg);
 
     elem = document.getElementById('sequenceNumber');
-    elem.value = escapeHTML(msgObj.sequenceNumber);
+    elem.value = msgObj.sequenceNumber;
 
     elem = document.getElementById('sequenceSpeed');
-    elem.value = escapeHTML(msgObj.sequenceSpeed);
+    elem.value = msgObj.sequenceSpeed;
   }
   function setCheckbox(element, state) {
     document.getElementById(element.id+"State").innerHTML = state;
@@ -405,7 +405,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     var seqNum = document.getElementById("sequenceNumber").value;
     var seqSpeed = document.getElementById("sequenceSpeed").value;
     console.log("SS: " + seqNum + ", " + seqSpeed);
-    var jsonMsg = JSON.stringify({"msgType": "sequence", "sequenceNumber": seqNum, "sequenceSpeed": seqSpeed});
+    var jsonMsg = JSON.stringify({"msgType": "sequence", sequenceNumber: seqNum, sequenceSpeed: seqSpeed});
     console.log("setSequence: " + jsonMsg);
     websocket.send(jsonMsg);
     document.getElementById("speed").innerHTML = seqSpeed;
@@ -436,8 +436,8 @@ void notifyClients() {
   msg += "\"led\": " + String(enableLedArray);
   msg += ", \"el\": " + String(enableELwires);
   msg += ", \"msg\": \"" + ledMessage + "\"";
-  msg += ", \"sequenceNumber\": \"" + String(sequenceNumber) + "\"";
-  msg += ", \"sequenceSpeed\": \"" + String(sequenceSpeed) + "\"";
+  msg += ", \"sequenceNumber\": " + String(sequenceNumber);
+  msg += ", \"sequenceSpeed\": " + String(sequenceSpeed);
   msg += "}";
   ws.textAll(msg);
 }
@@ -472,6 +472,12 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
         Serial.println("Error: unknown mode type: " + mode);
         return;
       }
+    } else if (msgType.equals("sequence")) {
+      sequenceNumber = doc["sequenceNumber"];
+      sequenceSpeed = doc["sequenceSpeed"];
+    } else {
+      Serial.println("Error: unknown message type: " + msgType);
+      return;
     }
     notifyClients();
   }
