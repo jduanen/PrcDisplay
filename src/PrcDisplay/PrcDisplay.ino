@@ -28,7 +28,7 @@
 #include "wifi.h"
 
 #include <PCF8574.h>
-#include "patterns.h"
+#include "sequences.h"
 
 #include <ShiftRegister74HC595.h>
 #include "fonts.h"
@@ -61,8 +61,8 @@ void println(String str) {
 
 #define NUM_EL_WIRES        8
 
-#define DEF_PATTERN         0
-#define DEF_WIRE_SPEED      0
+#define DEF_SEQUENCE_NUMBER 0
+#define DEF_SEQUENCE_SPEED  0
 
 #define UNUSED_ANALOG       A0
 
@@ -105,11 +105,10 @@ StaticJsonDocument<200> doc;
 
 PCF8574 prcd = PCF8574(I2C_BASE_ADDR);
 
-uint16_t selection = DEF_PATTERN;
-uint16_t lastSelection = DEF_PATTERN;
-uint32_t wireSpeed = DEF_WIRE_SPEED;
-uint32_t lastWireSpeed = DEF_WIRE_SPEED;
-byte lastWires = 0;
+uint16_t sequenceNumber = DEF_SEQUENCE_NUMBER;
+uint16_t lastSequenceNumber = sequenceNumber;
+uint32_t sequenceSpeed = DEF_SEQUENCE_SPEED;
+uint32_t lastSequenceSpeed = sequenceSpeed;
 
 LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, OE_PIN, NUM_ROWS, NUM_COLS, STD_WAIT);
 
@@ -133,11 +132,13 @@ const char index_html[] PROGMEM = R"rawliteral(
     color: white;
   }
   h2{
+    margin: 5px;
     font-size: 1.7rem;
     font-weight: bold;
     color: #143642;
   }
   h3{
+    margin-top: 10px;
     font-size: 1.5rem;
     font-weight: bold;
     color: #143642;
@@ -161,6 +162,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     padding-bottom:20px;
   }
   .staticState {
+    margin: 5px;
     font-size: 1.2rem;
     color:black;
     font-weight: bold;
@@ -199,6 +201,9 @@ const char index_html[] PROGMEM = R"rawliteral(
     border-radius: 25px;
   }
   .vertical-center {
+    margin-top: 0px;
+    margin-bottom: 25px;
+    line-height: 2em;
     font-size: 1.2rem;
     color:#8c8c8c;
     font-weight: bold;
@@ -219,6 +224,16 @@ const char index_html[] PROGMEM = R"rawliteral(
     -ms-transform: translateX(26px); 
     transform: translateX(26px);
   }
+  .green-button {
+    background-color: #4CAF50;
+    border: 10px;
+    color: white;
+    padding: 5px 8px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 1.2rem;
+  }
   </style>
 <title>PrcDisplay Web Server</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -238,15 +253,24 @@ const char index_html[] PROGMEM = R"rawliteral(
       <p class="staticState">LED Fonts Version: <span style="color:blue" id="fontsVersion">%FONTS_VERSION%</span></p>
       <p class="staticState">Number of LED Fonts: <span style="color:blue" id="numFonts">%NUMBER_OF_FONTS%</span></p>
       <p class="staticState">LED Font Names: <span style="color:blue" id="fontsNames">%FONT_NAMES%</span></p>
+      <p class="staticState">Number of EL Wire Sequences: <span style="color:blue" id="numSequences">%NUMBER_OF_SEQUENCES%</span></p>
     </div>
     <br>
     <div class="card">
       <h2>Controls</h2>
       <h3>System</h3>
-      <p class="state">Update Firmware: <a href="update">Update</a></p>
+      <div class="vertical-center" style="line-height: 1.5em;">
+        <p>Update Firmware: <a href="update">Update</a></p>
+        <p>
+          SSID: <input type="text" id="ssid">
+          <br>
+          Password: <input type="password" id="password">
+        </p>
+        <p><button class="green-button" id="save" onclick="saveConfiguration()">Save Configuration</button></p>
+      </div>
 
       <h3>LED Array</h3>
-      <div class="center">
+      <div class="vertical-center">
         State: &nbsp <span id="ledState" style="color:blue"></span>
         <label class="switch">
           <input type="checkbox" onchange="toggleCheckbox(this)" id="led">
@@ -270,7 +294,13 @@ const char index_html[] PROGMEM = R"rawliteral(
             <span class="slider"></span>
         </label>
       </div>
-
+      <div class="vertical-center">
+        Sequence Number:
+        <select id="sequenceNumber" name="sequenceNumber" onchange="setSequence()"></select>
+        <br>
+        Sequence Speed:
+        <input type="range", id="sequenceSpeed", min="1", max="100", value="50" onchange="setSequence()"><p><span id="speed"></span><p>
+      </div>
     </div>
   </div>
 <script>
@@ -309,6 +339,13 @@ const char index_html[] PROGMEM = R"rawliteral(
       opt.innerHTML = fontNamesArr[i];
       select.appendChild(opt);
     }
+    var select = document.getElementById('sequenceNumber');
+    for (var i = 0; i < %NUMBER_OF_SEQUENCES%; i++) {
+      var opt = document.createElement('option');
+      opt.value = i;
+      opt.innerHTML = i;
+      select.appendChild(opt);
+    }
   }
   function setLedMsg() {
     var fontNum = document.getElementById('fonts').value;
@@ -344,6 +381,12 @@ const char index_html[] PROGMEM = R"rawliteral(
 
     elem = document.getElementById('ledMessage');
     elem.value = escapeHTML(msgObj.msg);
+
+    elem = document.getElementById('sequenceNumber');
+    elem.value = escapeHTML(msgObj.sequenceNumber);
+
+    elem = document.getElementById('sequenceSpeed');
+    elem.value = escapeHTML(msgObj.sequenceSpeed);
   }
   function setCheckbox(element, state) {
     document.getElementById(element.id+"State").innerHTML = state;
@@ -357,6 +400,23 @@ const char index_html[] PROGMEM = R"rawliteral(
     else {
         document.getElementById(element.id+"State").innerHTML = "OFF"; 
     }
+  }
+  function setSequence() {
+    var seqNum = document.getElementById("sequenceNumber").value;
+    var seqSpeed = document.getElementById("sequenceSpeed").value;
+    console.log("SS: " + seqNum + ", " + seqSpeed);
+    var jsonMsg = JSON.stringify({"msgType": "sequence", "sequenceNumber": seqNum, "sequenceSpeed": seqSpeed});
+    console.log("setSequence: " + jsonMsg);
+    websocket.send(jsonMsg);
+    document.getElementById("speed").innerHTML = seqSpeed;
+  }
+  function saveConfiguration() {
+    var ssid = document.getElementById("ssid").value;
+    var passwd = document.getElementById("passwd").value;
+    console.log("SC: " + ssid + ", " + passwd);
+    var jsonMsg = JSON.stringify({"msgType": "saveConf", "ssid": ssid, "passwd": passwd});
+    console.log("Save configuration: " + jsonMsg);
+    websocket.send(jsonMsg);
   }
   function escapeHTML(s) {
     return s.replace(/&/g, '&amp;')
@@ -372,10 +432,13 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 
 void notifyClients() {
-  String msg = "";
-  msg += "{\"led\": " + String(enableLedArray);
+  String msg = "{";
+  msg += "\"led\": " + String(enableLedArray);
   msg += ", \"el\": " + String(enableELwires);
-  msg += ", \"msg\": \"" + ledMessage + "\"}";
+  msg += ", \"msg\": \"" + ledMessage + "\"";
+  msg += ", \"sequenceNumber\": \"" + String(sequenceNumber) + "\"";
+  msg += ", \"sequenceSpeed\": \"" + String(sequenceSpeed) + "\"";
+  msg += "}";
   ws.textAll(msg);
 }
 
@@ -456,6 +519,8 @@ String processor(const String& var){
     return (enableLedArray ? "ON" : "OFF");
   } else if (var == "EL_STATE") {
     return (enableELwires ? "ON" : "OFF");
+  } else if (var == "NUMBER_OF_SEQUENCES") {
+    return (String(NUM_SEQUENCES));
   }
   return String();
 }
@@ -499,35 +564,32 @@ void elWiresRun() {
   int i, randEnbs, delayTime;
   Pattern *seqPtr;
 
-  Serial.print("Pattern Selection: ");    //// TMP TMP TMP
-  Serial.println(selection, DEC);  //// TMP TMP TMP
-
-  seqPtr = sequences[selection];
+  seqPtr = sequences[sequenceNumber];
   if ((seqPtr->enables == 0) && (seqPtr->baseDelay == 0x00)) {
     randEnbs = random(0, 255);
-    delayTime = wireSpeed + RAND_PATT_DELAY;
-    Serial.println("Pattern: 0x" + String(randEnbs, HEX) + ", Delay: " + String(delayTime));
+    delayTime = sequenceSpeed + RAND_PATT_DELAY;
+//    Serial.println("Pattern: 0x" + String(randEnbs, HEX) + ", Delay: " + String(delayTime));
     for (i = 0; (i < NUM_EL_WIRES); i++) {
       digitalWrite((i + 2), ((randEnbs >> i) & 0x01));
     }
-    delay(delayTime);  //// FIXME don't do delays, look at loopcount instead
+//    delay(delayTime);  //// FIXME don't do delays, look at loopcount instead
   } else {
     // loop over sequence
     while (!((seqPtr->enables == 0) && (seqPtr->baseDelay == 0x00))) {
-      if (selection != lastSelection) {
-        lastSelection = selection;
+      if (sequenceNumber != lastSequenceNumber) {
+        lastSequenceNumber = sequenceNumber;
         break;
       }
-      if (wireSpeed != lastWireSpeed) {
-        lastWireSpeed = wireSpeed;
+      if (sequenceSpeed != lastSequenceSpeed) {
+        lastSequenceSpeed = sequenceSpeed;
         break;
       }
-      delayTime = (seqPtr->baseDelay * DELAY_INTERVAL) + wireSpeed;
-      Serial.println("Pattern: 0x" + String(seqPtr->enables, HEX) + ", Delay: " + String(delayTime));
+      delayTime = (seqPtr->baseDelay * DELAY_INTERVAL) + sequenceSpeed;
+//      Serial.println("Pattern: 0x" + String(seqPtr->enables, HEX) + ", Delay: " + String(delayTime));
       for (i = 0; (i < NUM_EL_WIRES); i++) {
         digitalWrite((i + 2), ((seqPtr->enables >> i) & 0x01));
       }
-      delay(delayTime);  //// FIXME don't do delays, look at loopcount instead
+//      delay(delayTime);  //// FIXME don't do delays, look at loopcount instead
       seqPtr++;
     }
   }
