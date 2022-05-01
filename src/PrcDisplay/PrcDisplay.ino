@@ -105,6 +105,7 @@ StaticJsonDocument<200> doc;
 
 PCF8574 prcd = PCF8574(I2C_BASE_ADDR);
 
+bool randomSequence = false;
 uint16_t sequenceNumber = DEF_SEQUENCE_NUMBER;
 uint16_t lastSequenceNumber = sequenceNumber;
 uint32_t sequenceSpeed = DEF_SEQUENCE_SPEED;
@@ -295,6 +296,9 @@ const char index_html[] PROGMEM = R"rawliteral(
         </label>
       </div>
       <div class="vertical-center">
+        Random Sequence: 
+        <input type="checkbox" id="randomSequence" name="randomSequence" onclick="toggleRandomSequence()">
+        <br>
         Sequence Number:
         <select id="sequenceNumber" name="sequenceNumber" onchange="setSequence()"></select>
         <br>
@@ -379,6 +383,10 @@ const char index_html[] PROGMEM = R"rawliteral(
     }
     elem.innerHTML = state;
 
+    var rs = (msgObj.randomSequence != 0);
+    document.getElementById('randomSequence').checked = rs;
+    document.getElementById('sequenceNumber').disabled = rs;
+
     elem = document.getElementById('ledMessage');
     elem.value = escapeHTML(msgObj.msg);
 
@@ -405,17 +413,20 @@ const char index_html[] PROGMEM = R"rawliteral(
   function setSequence() {
     var seqNum = document.getElementById("sequenceNumber").value;
     var seqSpeed = document.getElementById("sequenceSpeed").value;
-    console.log("SS: " + seqNum + ", " + seqSpeed);
     var jsonMsg = JSON.stringify({"msgType": "sequence", sequenceNumber: seqNum, sequenceSpeed: seqSpeed});
-    console.log("setSequence: " + jsonMsg);
     websocket.send(jsonMsg);
   }
   function saveConfiguration() {
     var ssid = document.getElementById("ssid").value;
     var passwd = document.getElementById("password").value;
-    console.log("SC: " + ssid + ", " + passwd);
     var jsonMsg = JSON.stringify({"msgType": "saveConf", "ssid": ssid, "passwd": passwd});
     console.log("Save configuration: " + jsonMsg);
+    websocket.send(jsonMsg);
+  }
+  function toggleRandomSequence() {
+    var randomSeq = document.getElementById("randomSequence").checked;
+    document.getElementById("sequenceNumber").disabled = randomSeq;
+    var jsonMsg = JSON.stringify({"msgType": "randomSequence", "state": randomSeq});
     websocket.send(jsonMsg);
   }
   function escapeHTML(s) {
@@ -432,10 +443,12 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 
 void notifyClients() {
+  //// TODO consider using real JSON to construct the message
   String msg = "{";
   msg += "\"led\": " + String(enableLedArray);
   msg += ", \"el\": " + String(enableELwires);
   msg += ", \"msg\": \"" + ledMessage + "\"";
+  msg += ", \"randomSequence\": " + String(randomSequence);
   msg += ", \"sequenceNumber\": " + String(sequenceNumber);
   msg += ", \"sequenceSpeed\": " + String(sequenceSpeed);
   msg += "}";
@@ -475,6 +488,8 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     } else if (msgType.equals("sequence")) {
       sequenceNumber = doc["sequenceNumber"];
       sequenceSpeed = doc["sequenceSpeed"];
+    } else if (msgType.equals("randomSequence")) {
+      randomSequence = doc["state"] ? true : false;
     } else if (msgType.equals("saveConf")) {
       //// TODO build JSON with all the state -- ssid, passwd, ledState, ledMsg, elState, sequenceNumber, sequenceSpeed
       ////       and write it to the config file 
