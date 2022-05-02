@@ -5,6 +5,7 @@
  */
 
 #include <Arduino.h>
+#include "fonts.h"
 #include <LedArray.h>
 
 
