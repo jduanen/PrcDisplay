@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <Android.h>
+#include <Arduino.h>
 #include <PCF8574.h>
+
 
 #define EL_WIRE_LIB_VERSION     "1.0"
 
@@ -24,14 +25,13 @@ class ElWires {
 public:
     String libVersion = EL_WIRE_LIB_VERSION;
 
-    int numSequences;
-
 	ElWires();
-	bool getRandomSequence();
+	bool randomSequence();
 	void enableRandomSequence(bool enable);
 
-	unsigned short getSequenceNumber();
-	unsigned int getSequenceSpeed();
+	unsigned short numSequences();
+	unsigned short sequenceNumber();
+	unsigned int sequenceSpeed();
 	void setSequence(unsigned short number, unsigned int speed);
 
 	void clear();
@@ -41,13 +41,19 @@ public:
 private:
 	PCF8574 _prcd = PCF8574(I2C_BASE_ADDR);
 
-	int _delayCycles = 0;
+	uint8_t _numElWires;
+	unsigned short _numSequences;
+
+	unsigned int _delayCycles = 0;
+	unsigned int _seqIndx = 0;
 
 	bool _randomSequence = false;
 	unsigned short _sequenceNumber = DEF_SEQUENCE_NUMBER;
 	unsigned int _sequenceSpeed = DEF_SEQUENCE_SPEED;
 
-	bool _lastRandomSequence = randomSequence;
-	unsigned short _lastSequenceNumber = sequenceNumber;
-	unsigned int _lastSequenceSpeed = sequenceSpeed;
-}
+	bool _lastRandomSequence = _randomSequence;
+	unsigned short _lastSequenceNumber = _sequenceNumber;
+	unsigned int _lastSequenceSpeed = _sequenceSpeed;
+};
+
+#include "ElWires.hpp"
