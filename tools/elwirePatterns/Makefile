@@ -5,4 +5,4 @@ sequences.h: seqgen
 	./seqgen > sequences.h
 
 install: sequences.h
-	cp ./sequences.h ../../includes
+	cp ./sequences.h ../../include/
