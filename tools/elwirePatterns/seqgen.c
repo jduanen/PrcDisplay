@@ -49,11 +49,6 @@ int main() {
     printf("#define NUM_EL_WIRES        %d\n", NUM_EL_WIRES);
     printf("#define NUM_SEQUENCES       %d\n\n", NUM_SEQUENCES);
 
-    printf("typedef struct {\n");
-    printf("    unsigned short offset;\n");
-    printf("    unsigned short length;\n");
-    printf("} SequenceDefinition;\n\n");
-
     printf("SequenceDefinition sequenceDefinitions[] = {\n");
     for (int seqNum = 0; (seqNum < NUM_SEQUENCES); seqNum++) {
         printf("    { 0x%04X, 0x%04X },\n", sequenceDefinitions[seqNum].offset, sequenceDefinitions[seqNum].length);
