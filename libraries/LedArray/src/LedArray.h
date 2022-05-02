@@ -16,14 +16,14 @@
 #include <Arduino.h>
 #include <ShiftRegister74HC595.h>
 
-#define LIB_VERSION     "1.0"
+#define LED_LIB_VERSION "1.0"
 #define LONG_WAIT       1000
 
 
 template<uint8_t Size>
 class LedArray {
 public:
-    String libVersion = LIB_VERSION;
+    String libVersion = LED_LIB_VERSION;
 
     LedArray(uint8_t dataPin, uint8_t srClkPin, uint8_t rClkPin, uint8_t oePin, uint8_t numRows, uint8_t numCols, int scrollSpeed);
 
