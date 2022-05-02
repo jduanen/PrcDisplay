@@ -82,6 +82,8 @@ void ElWires::run() {
 	if (_delayCycles > 0) {
 		_delayCycles--;
 		return;
+	} else {
+		_delayCycles = _sequenceSpeed;
 	}
 
 	if (_randomSequence == true) {
@@ -92,6 +94,9 @@ void ElWires::run() {
 			_seqIndx = 0;
 		}
 		wireEnables = patterns[sequenceDefinitions[_sequenceNumber].offset + _seqIndx++];
+	}
+	if (false) {
+		Serial.println("EL: 0x" + String(wireEnables, HEX));
 	}
 	writeAll(wireEnables);
 
