@@ -27,10 +27,9 @@
 #include <AsyncElegantOTA.h>
 #include "wifi.h"
 
-#include <PCF8574.h>
 #include "sequences.h"
+#include "Elwires.h"
 
-#include <ShiftRegister74HC595.h>
 #include "fonts.h"
 #include <LedArray.h>
 
@@ -53,21 +52,6 @@ void println(String str) {
 }
 
 #define WEB_SERVER_PORT     80
-
-#define I2C_BASE_ADDR       0x38    // PCF8574A
-//#define I2C_BASE_ADDR       0x20    // PCF8574
-#define READ_ADDR           0x4F
-#define WRITE_ADDR          0x4E
-
-#define NUM_EL_WIRES        8
-
-#define DEF_SEQUENCE_NUMBER 0
-#define DEF_SEQUENCE_SPEED  0
-
-#define UNUSED_ANALOG       A0
-
-#define DELAY_INTERVAL      10  // baseDelay is to be multiplied by 10msec
-#define RAND_PATT_DELAY     10  // baseDelay for the random pattern case -- 10msec
 
 #define DATA_PIN            14  // D5
 #define SRCLK_PIN           12  // D6
@@ -92,8 +76,6 @@ void println(String str) {
 #define STARTUP_FONT        SKINNY_FONT
 
 
-int loopCnt = 0;
-
 bool enableELwires = true;
 bool enableLedArray = true;
 const int ledPin = 2;
@@ -103,13 +85,7 @@ AsyncWebSocket  ws("/ws");
 
 StaticJsonDocument<200> doc;
 
-PCF8574 prcd = PCF8574(I2C_BASE_ADDR);
-
-bool randomSequence = false;
-uint16_t sequenceNumber = DEF_SEQUENCE_NUMBER;
-uint16_t lastSequenceNumber = sequenceNumber;
-uint32_t sequenceSpeed = DEF_SEQUENCE_SPEED;
-uint32_t lastSequenceSpeed = sequenceSpeed;
+ElWires elWires();
 
 LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, OE_PIN, NUM_ROWS, NUM_COLS, STD_WAIT);
 
@@ -254,6 +230,7 @@ const char index_html[] PROGMEM = R"rawliteral(
       <p class="staticState">LED Fonts Version: <span style="color:blue" id="fontsVersion">%FONTS_VERSION%</span></p>
       <p class="staticState">Number of LED Fonts: <span style="color:blue" id="numFonts">%NUMBER_OF_FONTS%</span></p>
       <p class="staticState">LED Font Names: <span style="color:blue" id="fontsNames">%FONT_NAMES%</span></p>
+      <p class="staticState">EL Wire Sequences Version: <span style="color:blue" id="sequencesVersion">%SEQUENCES_VERSION%</span></p>
       <p class="staticState">Number of EL Wire Sequences: <span style="color:blue" id="numSequences">%NUMBER_OF_SEQUENCES%</span></p>
     </div>
     <br>
@@ -448,9 +425,9 @@ void notifyClients() {
   msg += "\"led\": " + String(enableLedArray);
   msg += ", \"el\": " + String(enableELwires);
   msg += ", \"msg\": \"" + ledMessage + "\"";
-  msg += ", \"randomSequence\": " + String(randomSequence);
-  msg += ", \"sequenceNumber\": " + String(sequenceNumber);
-  msg += ", \"sequenceSpeed\": " + String(sequenceSpeed);
+  msg += ", \"randomSequence\": " + String(elWires.getRandomSequence());
+  msg += ", \"sequenceNumber\": " + String(elWires.getSequenceNumber());
+  msg += ", \"sequenceSpeed\": " + String(elWires.getSequenceSpeed());
   msg += "}";
   ws.textAll(msg);
 }
@@ -486,10 +463,9 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
         return;
       }
     } else if (msgType.equals("sequence")) {
-      sequenceNumber = doc["sequenceNumber"];
-      sequenceSpeed = doc["sequenceSpeed"];
+      elWires.setSequence(doc["sequenceNumber"], doc["sequenceSpeed"]);
     } else if (msgType.equals("randomSequence")) {
-      randomSequence = doc["state"] ? true : false;
+      elWires.enableRandomSequence(doc["state"] ? true : false);
     } else if (msgType.equals("saveConf")) {
       //// TODO build JSON with all the state -- ssid, passwd, ledState, ledMsg, elState, sequenceNumber, sequenceSpeed
       ////       and write it to the config file 
@@ -543,84 +519,22 @@ String processor(const String& var){
     return (enableLedArray ? "ON" : "OFF");
   } else if (var == "EL_STATE") {
     return (enableELwires ? "ON" : "OFF");
+  } else if (var == "SEQUENCES_VERSION") {
+    return (elWires.libVersion);
   } else if (var == "NUMBER_OF_SEQUENCES") {
-    return (String(NUM_SEQUENCES));
+    return (String(elWires.numSequences));
   }
   return String();
 }
 
-void initWires() {
-  prcd.pinMode(P0, OUTPUT, HIGH);
-  prcd.pinMode(P1, OUTPUT, HIGH);
-  prcd.pinMode(P2, OUTPUT, HIGH);
-  prcd.pinMode(P3, OUTPUT, HIGH);
-  prcd.pinMode(P4, OUTPUT, HIGH);
-  prcd.pinMode(P5, OUTPUT, HIGH);
-  prcd.pinMode(P6, OUTPUT, HIGH);
-  prcd.pinMode(P7, OUTPUT, HIGH);
-  prcd.begin();
-
-  for (int wire = 0; (wire < NUM_EL_WIRES); wire++) {
-    prcd.digitalWrite(wire, HIGH);
-  }
-
-  // use floating input as source of randomness
-  randomSeed(analogRead(UNUSED_ANALOG));
+void initElWires() {
+  println("Number of Sequences: " + elWires.numSequences);
+  println("Random Sequence Enabled: " + elWires.getRandomSequence() ? "Yes" : "No");
+  println("Sequence Number: " + elWires.getSequenceNumber());
+  println("Sequence Speed: " + elWires.getSequenceSpeed());
+  elWires.clear();
 }
 
-void writeAllWires(byte values) { 
-  PCF8574::DigitalInput digitalInput;
-
-  digitalInput.p7 = bitRead(values, 7);
-  digitalInput.p6 = bitRead(values, 6);
-  digitalInput.p5 = bitRead(values, 5);
-  digitalInput.p4 = bitRead(values, 4);
-  digitalInput.p3 = bitRead(values, 3);
-  digitalInput.p2 = bitRead(values, 2);
-  digitalInput.p1 = bitRead(values, 1);
-  digitalInput.p0 = bitRead(values, 0);
-
-  prcd.digitalWriteAll(digitalInput);
-  print("writeAllWires: 0x" +  String(values, HEX) + "; ");
-}
-
-void elWiresRun() {
-  int i, randEnbs, delayTime;
-  Pattern *seqPtr;
-
-  seqPtr = sequences[sequenceNumber];
-  if ((seqPtr->enables == 0) && (seqPtr->baseDelay == 0x00)) {
-    randEnbs = random(0, 255);
-    delayTime = sequenceSpeed + RAND_PATT_DELAY;
-//    Serial.println("Pattern: 0x" + String(randEnbs, HEX) + ", Delay: " + String(delayTime));
-    for (i = 0; (i < NUM_EL_WIRES); i++) {
-      digitalWrite((i + 2), ((randEnbs >> i) & 0x01));
-    }
-//    delay(delayTime);  //// FIXME don't do delays, look at loopcount instead
-  } else {
-    // loop over sequence
-    while (!((seqPtr->enables == 0) && (seqPtr->baseDelay == 0x00))) {
-      if (sequenceNumber != lastSequenceNumber) {
-        lastSequenceNumber = sequenceNumber;
-        break;
-      }
-      if (sequenceSpeed != lastSequenceSpeed) {
-        lastSequenceSpeed = sequenceSpeed;
-        break;
-      }
-      delayTime = (seqPtr->baseDelay * DELAY_INTERVAL) + sequenceSpeed;
-//      Serial.println("Pattern: 0x" + String(seqPtr->enables, HEX) + ", Delay: " + String(delayTime));
-      for (i = 0; (i < NUM_EL_WIRES); i++) {
-        digitalWrite((i + 2), ((seqPtr->enables >> i) & 0x01));
-      }
-//      delay(delayTime);  //// FIXME don't do delays, look at loopcount instead
-      seqPtr++;
-    }
-  }
-}
-
-
-//// FIXME
 void initLedArray() {
   println("Fonts Version: " + leds.libVersion);
   println("Number of Fonts: " + String(NUM_FONTS));
@@ -670,7 +584,7 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started");
 
-  initWires();
+  initElWires();
   Serial.println("EL wires function started");
 
   initLedArray();
@@ -684,13 +598,11 @@ void loop() {
   digitalWrite(ledPin, enableLedArray);
 
   if (enableELwires) {
-    elWiresRun();
+    elWires.run();
   }
 
   leds.enableDisplay(enableLedArray);
   if (enableLedArray) {
     leds.run();
   }
-
-  loopCnt++;
 };
