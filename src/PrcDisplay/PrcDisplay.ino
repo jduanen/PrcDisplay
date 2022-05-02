@@ -25,13 +25,10 @@
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncElegantOTA.h>
+
 #include "wifi.h"
-
-#include "sequences.h"
-#include "Elwires.h"
-
-#include "fonts.h"
-#include <LedArray.h>
+#include "ElWires.h"
+#include "LedArray.h"
 
 
 #define APP_VERSION     "1.0.0"
@@ -425,9 +422,9 @@ void notifyClients() {
   msg += "\"led\": " + String(enableLedArray);
   msg += ", \"el\": " + String(enableELwires);
   msg += ", \"msg\": \"" + ledMessage + "\"";
-  msg += ", \"randomSequence\": " + String(elWires.getRandomSequence());
-  msg += ", \"sequenceNumber\": " + String(elWires.getSequenceNumber());
-  msg += ", \"sequenceSpeed\": " + String(elWires.getSequenceSpeed());
+  msg += ", \"randomSequence\": " + String(elWires.randomSequence());
+  msg += ", \"sequenceNumber\": " + String(elWires.sequenceNumber());
+  msg += ", \"sequenceSpeed\": " + String(elWires.sequenceSpeed());
   msg += "}";
   ws.textAll(msg);
 }
@@ -522,16 +519,16 @@ String processor(const String& var){
   } else if (var == "SEQUENCES_VERSION") {
     return (elWires.libVersion);
   } else if (var == "NUMBER_OF_SEQUENCES") {
-    return (String(elWires.numSequences));
+    return (String(elWires.numSequences()));
   }
   return String();
 }
 
 void initElWires() {
-  println("Number of Sequences: " + elWires.numSequences);
-  println("Random Sequence Enabled: " + elWires.getRandomSequence() ? "Yes" : "No");
-  println("Sequence Number: " + elWires.getSequenceNumber());
-  println("Sequence Speed: " + elWires.getSequenceSpeed());
+  println("Number of Sequences: " + elWires.numSequences());
+  println("Random Sequence Enabled: " + elWires.randomSequence() ? "Yes" : "No");
+  println("Sequence Number: " + elWires.sequenceNumber());
+  println("Sequence Speed: " + elWires.sequenceSpeed());
   elWires.clear();
 }
 
