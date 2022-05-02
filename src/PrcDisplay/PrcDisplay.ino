@@ -27,7 +27,9 @@
 #include <AsyncElegantOTA.h>
 
 #include "wifi.h"
+#include "sequences.h"
 #include "ElWires.h"
+#include "fonts.h"
 #include "LedArray.h"
 
 
@@ -82,7 +84,7 @@ AsyncWebSocket  ws("/ws");
 
 StaticJsonDocument<200> doc;
 
-ElWires elWires();
+ElWires elWires;
 
 LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, OE_PIN, NUM_ROWS, NUM_COLS, STD_WAIT);
 
