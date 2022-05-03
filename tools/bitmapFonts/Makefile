@@ -5,7 +5,7 @@ fonts.h: fontgen
 	./fontgen > fonts.h
 
 install: fonts.h
-	cp ./fonts.h ../../includes
+	cp ./fonts.h ../../include/
 
 clean:
 	rm -f fontgen.o fontgen fonts.h
