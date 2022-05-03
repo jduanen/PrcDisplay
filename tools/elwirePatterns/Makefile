@@ -1,4 +1,4 @@
-seqgen: seqgen.o seqdefs.h
+seqgen: seqgen.c seqdefs.h
 	cc -Wall -o seqgen seqgen.c
 
 sequences.h: seqgen
@@ -6,3 +6,6 @@ sequences.h: seqgen
 
 install: sequences.h
 	cp ./sequences.h ../../include/
+
+clean:
+	rm -f seqgen.o seqgen sequences.h
