@@ -20,6 +20,8 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#define CS_USE_LITTLEFS     true
+#include <ConfigStorage.h>
 
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
@@ -37,20 +39,9 @@
 
 #define VERBOSE             0
 
-
-void print(String str) {
-  if (VERBOSE) {
-    Serial.print(str);
-  }
-}
-
-void println(String str) {
-  if (VERBOSE) {
-    Serial.println(str);
-  }
-}
-
 #define WEB_SERVER_PORT     80
+
+#define MAX_WIFI_RETRIES    16
 
 #define DATA_PIN            14  // D5
 #define SRCLK_PIN           12  // D6
@@ -74,23 +65,51 @@ void println(String str) {
 #define STARTUP_MSG         "Hello World!"
 #define STARTUP_FONT        SKINNY_FONT
 
+#define STARTUP_EL_SEQUENCE 0
+#define STARTUP_EL_SPEED    100
 
-bool enableELwires = true;
-bool enableLedArray = true;
+#define CONFIG_PATH     "/config.json"
+
+
+typedef struct {
+  String ssid;
+  String passwd;
+  bool ledState;
+  String ledMessage;
+  char ledFont;
+  bool elState;
+  bool randomSequence;
+  unsigned short sequenceNumber;
+  unsigned short sequenceSpeed;
+} ConfigState;
+
+ConfigState configState = {
+  String(WLAN_SSID),
+  String(WLAN_PASS),
+  true,
+  String(STARTUP_MSG),
+  STARTUP_FONT,
+  true,
+  false,
+  STARTUP_EL_SEQUENCE,
+  STARTUP_EL_SPEED
+};
+
+ConfigStorage cs(CONFIG_PATH);
+
 const int ledPin = 2;
 
 AsyncWebServer  server(WEB_SERVER_PORT);
 AsyncWebSocket  ws("/ws");
 
-StaticJsonDocument<200> doc;
+StaticJsonDocument<256> wsMsg;
+StaticJsonDocument<512> config;
 
 ElWires elWires;
 
 LedArray<NUM_SR> leds(DATA_PIN, SRCLK_PIN, RCLK_PIN, OE_PIN, NUM_ROWS, NUM_COLS, STD_WAIT);
 
 String fontNamesList = String();
-
-String ledMessage = STARTUP_MSG;
 
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
@@ -243,11 +262,10 @@ const char index_html[] PROGMEM = R"rawliteral(
           <br>
           Password: <input type="password" id="password">
         </p>
-        <p><button class="green-button" id="save" onclick="saveConfiguration()">Save Configuration</button></p>
       </div>
 
       <h3>LED Array</h3>
-      <div class="vertical-center">
+      <div class="center">
         State: &nbsp <span id="ledState" style="color:blue"></span>
         <label class="switch">
           <input type="checkbox" onchange="toggleCheckbox(this)" id="led">
@@ -280,6 +298,10 @@ const char index_html[] PROGMEM = R"rawliteral(
         <br>
         Sequence Speed:
         <input type="range", id="sequenceSpeed", min="1", max="500", value="250" onchange="setSequence()"> &nbsp <span id="speed"></span>
+      </div>
+
+      <div class="vertical-center">
+        <p><button class="green-button" id="save" onclick="saveConfiguration()">Save Configuration</button></p>
       </div>
     </div>
   </div>
@@ -417,16 +439,26 @@ const char index_html[] PROGMEM = R"rawliteral(
 </body>
 </html>)rawliteral";
 
+void print(String str) {
+  if (VERBOSE) {
+    Serial.print(str);
+  }
+}
+
+void println(String str) {
+  if (VERBOSE) {
+    Serial.println(str);
+  }
+}
 
 void notifyClients() {
-  //// TODO consider using real JSON to construct the message
   String msg = "{";
-  msg += "\"led\": " + String(enableLedArray);
-  msg += ", \"el\": " + String(enableELwires);
-  msg += ", \"msg\": \"" + ledMessage + "\"";
-  msg += ", \"randomSequence\": " + String(elWires.randomSequence());
-  msg += ", \"sequenceNumber\": " + String(elWires.sequenceNumber());
-  msg += ", \"sequenceSpeed\": " + String(elWires.sequenceSpeed());
+  msg += "\"led\": " + String(configState.ledState);
+  msg += ", \"el\": " + String(configState.elState);
+  msg += ", \"msg\": \"" + configState.ledMessage + "\"";
+  msg += ", \"randomSequence\": " + String(configState.randomSequence);
+  msg += ", \"sequenceNumber\": " + String(configState.sequenceNumber);
+  msg += ", \"sequenceSpeed\": " + String(configState.sequenceSpeed);
   msg += "}";
   ws.textAll(msg);
 }
@@ -435,39 +467,52 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
-    DeserializationError error = deserializeJson(doc, (char *)data);
+    DeserializationError error = deserializeJson(wsMsg, (char *)data);
     if (error) {
       Serial.print("deserializeJson() failed: ");
       Serial.println(error.f_str());
       return;
     }
-    String msgType = String(doc["msgType"]);
+    String msgType = String(wsMsg["msgType"]);
     if (msgType.equals("led")) {
-      enableLedArray = !enableLedArray;
+      configState.ledState = !configState.ledState;
     } else if (msgType.equals("el")) {
-      enableELwires = !enableELwires;
+      configState.elState = !configState.elState;
     } else if (msgType.equals("query")) {
       // NOP
     } else if (msgType.equals("ledMsg")) {
-      String mode = String(doc["mode"]);
-      ledMessage = String(doc["text"]);
-      ledMessage.trim();
-      int f = doc["fontNum"];
+      String mode = String(wsMsg["mode"]);
+      configState.ledMessage = String(wsMsg["text"]);
+      configState.ledMessage.trim();
+      int f = wsMsg["fontNum"];
+      configState.ledFont = ('0' + f);
       if (mode.equals("set")) {
-        leds.message(&ledMessage, ('0' + f));
+        leds.message(&configState.ledMessage, configState.ledFont);
       } else if (mode.equals("append")) {
-        leds.appendMessage(&ledMessage, ('0' + f));
+        leds.appendMessage(&configState.ledMessage, configState.ledFont);
       } else {
         Serial.println("Error: unknown mode type: " + mode);
         return;
       }
     } else if (msgType.equals("sequence")) {
-      elWires.setSequence(doc["sequenceNumber"], doc["sequenceSpeed"]);
+      elWires.setSequence(wsMsg["sequenceNumber"], wsMsg["sequenceSpeed"]);
+      configState.sequenceNumber = elWires.sequenceNumber();
+      configState.sequenceSpeed = elWires.sequenceSpeed();
     } else if (msgType.equals("randomSequence")) {
-      elWires.enableRandomSequence(doc["state"] ? true : false);
+      elWires.enableRandomSequence(wsMsg["state"] ? true : false);
+      configState.randomSequence = elWires.randomSequence();
     } else if (msgType.equals("saveConf")) {
-      //// TODO build JSON with all the state -- ssid, passwd, ledState, ledMsg, elState, sequenceNumber, sequenceSpeed
-      ////       and write it to the config file 
+      config["ssid"] = configState.ssid;
+      config["passwd"] = configState.passwd;
+      config["ledState"] = configState.ledState;
+      config["ledMessage"] = configState.ledMessage;
+      config["ledFont"] = configState.ledFont;
+      config["elState"] = configState.elState;
+      config["randomSequence"] = configState.randomSequence;
+      config["sequenceNumber"] = configState.sequenceNumber;
+      config["sequenceSpeed"] = configState.sequenceSpeed;
+      cs.set(config);
+      cs.save();
     } else {
       Serial.println("Error: unknown message type: " + msgType);
       return;
@@ -515,9 +560,9 @@ String processor(const String& var){
   } else if (var == "FONT_NAMES") {
     return (fontNamesList);
   } else if (var == "LED_STATE") {
-    return (enableLedArray ? "ON" : "OFF");
+    return (configState.ledState ? "ON" : "OFF");
   } else if (var == "EL_STATE") {
-    return (enableELwires ? "ON" : "OFF");
+    return (configState.ledState ? "ON" : "OFF");
   } else if (var == "SEQUENCES_VERSION") {
     return (elWires.libVersion);
   } else if (var == "NUMBER_OF_SEQUENCES") {
@@ -546,9 +591,7 @@ void initLedArray() {
   println("Font Names: [" + fontNamesList + "]");
 
   leds.clear();
-  ledMessage = STARTUP_MSG;
-  println("Startup message: " + ledMessage);
-  leds.message(&ledMessage, STARTUP_FONT);
+  leds.message(&configState.ledMessage, configState.ledFont);
 }
 
 void setup() { 
@@ -561,16 +604,96 @@ void setup() {
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
 
-  //// TODO look for config file and initialize values from it if it exists
-  
+  config = cs.get();
+  JsonObject obj = config.as<JsonObject>();
+  if (obj.isNull()) {
+    Serial.println("No config file, initialize with an empty one");
+    cs.initialize();
+    deserializeJson(config, "{}");
+    cs.set(config);
+    cs.save();
+  }
+
+  bool dirty = false;
+  //// FIXME DRY this up
+  if (config.containsKey("ssid") && !config["ssid"].isNull()) {
+      configState.ssid = String(config["ssid"]);
+  } else {
+    config["ssid"] = configState.ssid;
+    dirty = true;
+  }
+  if (config.containsKey("passwd") && !config["passwd"].isNull()) {
+    configState.passwd = String(config["passwd"]);
+  } else {
+    config["passwd"] = configState.passwd;
+    dirty = true;
+  }
+  if (config.containsKey("ledState") && !config["ledState"].isNull()) {
+    configState.ledState = config["ledState"];
+  } else {
+    config["ledState"] = configState.ledState;
+    dirty = true;
+  }
+  if (config.containsKey("ledMessage") && !config["ledMessage"].isNull()) {
+    configState.ledMessage = String(config["ledMessage"]);
+  } else {
+    config["ledMessage"] = configState.ledMessage;
+    dirty = true;
+  }
+  if (config.containsKey("ledFont") && !config["ledFont"].isNull()) {
+    configState.ledFont = config["ledFont"];
+  } else {
+    config["ledFont"] = configState.ledFont;
+    dirty = true;
+  }
+  if (config.containsKey("elState") && !config["elState"].isNull()) {
+    configState.elState = config["elState"];
+  } else {
+    config["elState"] = configState.elState;
+    dirty = true;
+  }
+  if (config.containsKey("randomSequence") && !config["randomSequence"].isNull()) {
+    configState.randomSequence = config["randomSequence"];
+  } else {
+    config["randomSequence"] = configState.randomSequence;
+    dirty = true;
+  }
+  if (config.containsKey("sequenceNumber") && !config["sequenceNumber"].isNull()) {
+    configState.sequenceNumber = config["sequenceNumber"];
+  } else {
+    config["sequenceNumber"] = configState.sequenceNumber;
+    dirty = true;
+  }
+  if (config.containsKey("sequenceSpeed") && !config["sequenceSpeed"].isNull()) {
+    configState.sequenceSpeed = config["sequenceSpeed"];
+  } else {
+    config["sequenceSpeed"] = configState.sequenceSpeed;
+    dirty = true;
+  }
+  if (dirty) {
+    cs.set(config);
+    cs.save();
+  }
+  Serial.println("Config:");
+  serializeJsonPretty(config, Serial);
+  Serial.println("");
+
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WLAN_SSID, WLAN_PASS);
+  WiFi.begin(configState.ssid, configState.passwd);
+  int i = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.println("Connecting to WiFi..");
+    if (i++ > MAX_WIFI_RETRIES) {
+      Serial.println("Using fallback WiFi parameters");
+      WiFi.begin(WLAN_SSID, WLAN_PASS);
+      delay(500);
+      i = 0;
+    }
   }
-  Serial.println("\nConnected to " + String(WLAN_SSID));
+  Serial.println("\nConnected to " + WiFi.SSID());
   Serial.println("IP address: " + WiFi.localIP().toString());
+  Serial.println("RSSI: " + String(WiFi.RSSI()));
 
   initWebSocket();
 
@@ -594,14 +717,14 @@ void loop() {
   ws.cleanupClients();
 
   //// TMP TMP TMP
-  digitalWrite(ledPin, enableLedArray);
+  digitalWrite(ledPin, configState.ledState);
 
-  if (enableELwires) {
+  if (configState.elState) {
     elWires.run();
   }
 
-  leds.enableDisplay(enableLedArray);
-  if (enableLedArray) {
+  leds.enableDisplay(configState.ledState);
+  if (configState.ledState) {
     leds.run();
   }
 };
