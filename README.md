@@ -1,6 +1,8 @@
 # PrcDisplay
 Mark2 Tin-Foil hat
 
+A version of the LdgDisplay for my friend Peter Christy.
+
 ## Notes
 
 * Use 21x7 LED array from old badge as message board
