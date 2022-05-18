@@ -14,7 +14,6 @@
 *  - Add per-message blink option (using the SRs' OE bits)
 *  - Fill out symbols font
 *  - Clean up fonts
-*  - Add web interface and OTA capabilities
 *
 ****************************************************************************/
 
@@ -22,11 +21,8 @@
 #include <ArduinoJson.h>
 #define CS_USE_LITTLEFS     true
 #include <ConfigStorage.h>
-
-#include <ESP8266WiFi.h>
-#include <ESPAsyncTCP.h>
-#include <ESPAsyncWebServer.h>
 #include <AsyncElegantOTA.h>
+#include <ESPAsyncWebServer.h>
 
 #include "wifi.h"
 #include "sequences.h"
@@ -35,13 +31,13 @@
 #include "LedArray.h"
 
 
-#define APP_VERSION     "1.0.0"
+#define APP_VERSION         "1.0.0"
 
 #define VERBOSE             0
 
 #define WEB_SERVER_PORT     80
 
-#define MAX_WIFI_RETRIES    16
+#define MAX_WIFI_RETRIES    64
 
 #define DATA_PIN            14  // D5
 #define SRCLK_PIN           12  // D6
@@ -68,8 +64,7 @@
 #define STARTUP_EL_SEQUENCE 0
 #define STARTUP_EL_SPEED    100
 
-#define CONFIG_PATH     "/config.json"
-
+#define CONFIG_PATH         "/config.json"
 
 typedef struct {
   String ssid;
@@ -96,6 +91,8 @@ ConfigState configState = {
 };
 
 ConfigStorage cs(CONFIG_PATH);
+
+AsyncElegantOtaClass AsyncElegantOTA;
 
 const int ledPin = 2;
 
@@ -363,7 +360,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     var state;
     var elem;
     const msgObj = JSON.parse(event.data);
-    console.log('msgObj: ', msgObj);
+    console.log('msgObj: ' + msgObj);
 
     elem = document.getElementById('ledState');
     if (msgObj.led == "1"){
@@ -449,6 +446,21 @@ void println(String str) {
   if (VERBOSE) {
     Serial.println(str);
   }
+}
+
+String wifiStatusToString(wl_status_t status) {
+  String s = "WIFI_UNKNOWN: " + String(status);
+  switch (status) {
+    case WL_NO_SHIELD: s = "WIFI_NO_SHIELD";
+    case WL_IDLE_STATUS: s = "WIFI_IDLE_STATUS";
+    case WL_NO_SSID_AVAIL: s = "WIFI_NO_SSID_AVAIL";
+    case WL_SCAN_COMPLETED: s = "WIFI_SCAN_COMPLETED";
+    case WL_CONNECTED: s = "WIFI_CONNECTED";
+    case WL_CONNECT_FAILED: s = "WIFI_CONNECT_FAILED";
+    case WL_CONNECTION_LOST: s = "WIFI_CONNECTION_LOST";
+    case WL_DISCONNECTED: s = "WIFI_DISCONNECTED";
+  }
+  return(s);
 }
 
 void notifyClients() {
@@ -679,15 +691,19 @@ void setup() {
   Serial.println("");
 
   WiFi.mode(WIFI_STA);
+  //Serial.println(configState.ssid + ", " + configState.passwd);  //// TMP TMP TMP
   WiFi.begin(configState.ssid, configState.passwd);
   int i = 0;
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.println("Connecting to WiFi..");
+    delay(1000);
+    Serial.println("Connecting to WiFi.." + wifiStatusToString(WiFi.status()));
     if (i++ > MAX_WIFI_RETRIES) {
       Serial.println("Using fallback WiFi parameters");
-      WiFi.begin(WLAN_SSID, WLAN_PASS);
-      delay(500);
+      configState.ssid = WLAN_SSID;
+      configState.passwd = WLAN_PASS;
+      WiFi.begin(configState.ssid, configState.passwd);
+      //Serial.println(configState.ssid + ", " + configState.passwd);  //// TMP TMP TMP
+      delay(1000);
       i = 0;
     }
   }
