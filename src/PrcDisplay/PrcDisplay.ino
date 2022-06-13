@@ -543,6 +543,10 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       Serial.println(error.f_str());
       return;
     }
+    if (VERBOSE) {
+      println("wsMsg: ");
+      serializeJsonPretty(wsMsg, Serial);
+    }
     String msgType = String(wsMsg["msgType"]);
     if (msgType.equals("led")) {
       configState.ledState = !configState.ledState;
@@ -581,7 +585,10 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       config["randomSequence"] = configState.randomSequence;
       config["sequenceNumber"] = configState.sequenceNumber;
       config["sequenceSpeed"] = configState.sequenceSpeed;
-      serializeJsonPretty(config, Serial);
+      if (VERBOSE) {
+        println("config: ");
+        serializeJsonPretty(config, Serial);
+      }
       cs.set(config);
       cs.save();
     } else {
@@ -643,11 +650,13 @@ String processor(const String& var){
 }
 
 void initElWires() {
-  println("Number of Sequences: " + elWires.numSequences());
-  println("Random Sequence Enabled: " + elWires.randomSequence() ? "Yes" : "No");
-  println("Sequence Number: " + elWires.sequenceNumber());
-  println("Sequence Speed: " + elWires.sequenceSpeed());
+  println("Init EL Wires");
   elWires.clear();
+  elWires.setSequence(config["sequenceNumber"], config["sequenceSpeed"]);
+  println("Number of Sequences: " + String(elWires.numSequences()));
+  println("Random Sequence Enabled: " + elWires.randomSequence() ? "Yes" : "No");
+  println("Sequence Number: " + String(elWires.sequenceNumber()));
+  println("Sequence Speed: " + String(elWires.sequenceSpeed()));
 }
 
 void initLedArray() {
