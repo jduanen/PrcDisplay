@@ -557,7 +557,6 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     } else if (msgType.equals("ledMsg")) {
       String mode = String(wsMsg["mode"]);
       configState.ledMessage = String(wsMsg["text"]);
-      configState.ledMessage.trim();
       int f = wsMsg["fontNum"];
       configState.ledFont = ('0' + f);
       if (mode.equals("set")) {
