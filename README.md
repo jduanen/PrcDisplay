@@ -45,33 +45,7 @@ A version of the LdgDisplay for my friend Peter Christy.
 
 ## TODO
 
-* LED array
-  - mounting
-  - wiring
-* hat
-  - buy
-* cones
-  - wiring jig
-  - mounting pattern
-* driver
-  - get parts
-  - build board
-  - wiring
-* controller
-  - LED array code
-    * print to LED array
-    * scroll/flash
-    * see if I can emulate HW to use existing gfx libraries
-  - cone code
-  - web server code
-  - wiring
-* power supply
-  - turn on/off
-  - LiPo battery and charger
-  - HV PSU (step-up buck converter?)
 * web app
-  - cone pattern/speed
-  - message
   - on/off
   - battery level
 
