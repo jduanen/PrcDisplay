@@ -4,6 +4,8 @@
 * 
 * Drives eight 9' EL wires using the AFD Driver board and a 7x21 LED display
 *  using four 74HC595 shift registers.
+* 
+* N.B. This is insecure in that it passes the WiFi password in the clear -- you've been warned...
 *
 * Notes:
 *  - I2C defaults: SDA=GPIO4 -> D2, SCL=GPIO5 -> D1
@@ -33,11 +35,11 @@
 
 #define APP_VERSION         "1.0.0"
 
-#define VERBOSE             0
+#define VERBOSE             1
 
 #define WEB_SERVER_PORT     80
 
-#define MAX_WIFI_RETRIES    64
+#define MAX_WIFI_RETRIES    8 //64
 
 #define DATA_PIN            14  // D5
 #define SRCLK_PIN           12  // D6
@@ -66,6 +68,29 @@
 
 #define CONFIG_PATH         "/config.json"
 
+
+//// TODO add this to a common library
+String rot47(String str) {
+  String outStr = "";
+  char oldChr, newChr;
+
+  for (int i = 0; (i < str.length()); i++) {
+    oldChr = str.charAt(i);
+    if ((oldChr >= '!') && (oldChr <= 'O')) {
+      newChr = ((oldChr + 47) % 127);
+    } else {
+      if ((oldChr >= 'P') && (oldChr <= '~')) {
+        newChr = ((oldChr - 47) % 127);
+      } else {
+        newChr = oldChr;
+      }
+    }
+    outStr.concat(newChr);
+  }
+  return(outStr);
+}
+
+
 typedef struct {
   String ssid;
   String passwd;
@@ -80,7 +105,7 @@ typedef struct {
 
 ConfigState configState = {
   String(WLAN_SSID),
-  String(WLAN_PASS),
+  String(rot47(WLAN_PASS)),
   true,
   String(STARTUP_MSG),
   STARTUP_FONT,
@@ -226,6 +251,10 @@ const char index_html[] PROGMEM = R"rawliteral(
     display: inline-block;
     font-size: 1.2rem;
   }
+  .green-button:disabled {
+    background: #F5F5F5;
+    color : #C3C3C3;
+  }
   </style>
 <title>PrcDisplay Web Server</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -311,7 +340,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     websocket = new WebSocket(gateway);
     websocket.onopen    = onOpen;
     websocket.onclose   = onClose;
-    websocket.onmessage = onMessage; // <-- add this line
+    websocket.onmessage = onMessage;
   }
   function onOpen(event) {
     console.log('Connection opened');
@@ -360,7 +389,17 @@ const char index_html[] PROGMEM = R"rawliteral(
     var state;
     var elem;
     const msgObj = JSON.parse(event.data);
-    console.log('msgObj: ' + msgObj);
+    console.log("msgObj: " + JSON.stringify(msgObj));
+
+    elem = document.getElementById("ssid");
+    elem.value = msgObj.ssid;
+
+    elem = document.getElementById("password");
+    if (msgObj.passwd != null) {
+      elem.value = rot47(msgObj.passwd);
+    } else {
+      elem.value = "";
+    }
 
     elem = document.getElementById('ledState');
     if (msgObj.led == "1"){
@@ -391,6 +430,8 @@ const char index_html[] PROGMEM = R"rawliteral(
     elem = document.getElementById('sequenceSpeed');
     elem.value = msgObj.sequenceSpeed;
     document.getElementById("speed").innerHTML = msgObj.sequenceSpeed;
+
+    document.getElementById("save").disabled = false;
   }
   function setCheckbox(element, state) {
     document.getElementById(element.id+"State").innerHTML = state;
@@ -414,8 +455,8 @@ const char index_html[] PROGMEM = R"rawliteral(
   function saveConfiguration() {
     var ssid = document.getElementById("ssid").value;
     var passwd = document.getElementById("password").value;
-    var jsonMsg = JSON.stringify({"msgType": "saveConf", "ssid": ssid, "passwd": passwd});
-    console.log("Save configuration: " + jsonMsg);
+    var jsonMsg = JSON.stringify({"msgType": "saveConf", "ssid": ssid, "passwd": rot47(passwd)});
+    document.getElementById("save").disabled = true;
     websocket.send(jsonMsg);
   }
   function toggleRandomSequence() {
@@ -431,6 +472,21 @@ const char index_html[] PROGMEM = R"rawliteral(
         .replace(/'/g, '&apos;')
         .replace(/"/g, '&quot;')
         .replace(/\//g, '&sol;');
+  }
+  function rot13(str) {
+    return str.split('').map(char => String.fromCharCode(char.charCodeAt(0) + (char.toLowerCase() < 'n' ? 13 : -13))).join('');
+  }
+  function rot47(x) {
+    var s = [];
+    for(var i = 0; (i < x.length); i++) {
+      var j = x.charCodeAt(i);
+      if ((j >= 33) && (j <= 126)) {
+        s[i] = String.fromCharCode(33 + ((j + 14) % 94));
+      } else {
+        s[i] = String.fromCharCode(j);
+      }
+    }
+    return s.join('');
   }
 </script>
 </body>
@@ -465,7 +521,9 @@ String wifiStatusToString(wl_status_t status) {
 
 void notifyClients() {
   String msg = "{";
-  msg += "\"led\": " + String(configState.ledState);
+  msg += "\"ssid\": \"" + configState.ssid + "\"";
+  msg += ", \"passwd\": \"" + configState.passwd + "\"";
+  msg += ", \"led\": " + String(configState.ledState);
   msg += ", \"el\": " + String(configState.elState);
   msg += ", \"msg\": \"" + configState.ledMessage + "\"";
   msg += ", \"randomSequence\": " + String(configState.randomSequence);
@@ -514,8 +572,8 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       elWires.enableRandomSequence(wsMsg["state"] ? true : false);
       configState.randomSequence = elWires.randomSequence();
     } else if (msgType.equals("saveConf")) {
-      config["ssid"] = configState.ssid;
-      config["passwd"] = configState.passwd;
+      config["ssid"] = String(wsMsg["ssid"]);
+      config["passwd"] = String(wsMsg["passwd"]);
       config["ledState"] = configState.ledState;
       config["ledMessage"] = configState.ledMessage;
       config["ledFont"] = configState.ledFont;
@@ -523,6 +581,7 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       config["randomSequence"] = configState.randomSequence;
       config["sequenceNumber"] = configState.sequenceNumber;
       config["sequenceSpeed"] = configState.sequenceSpeed;
+      serializeJsonPretty(config, Serial);
       cs.set(config);
       cs.save();
     } else {
@@ -691,8 +750,7 @@ void setup() {
   Serial.println("");
 
   WiFi.mode(WIFI_STA);
-  //Serial.println(configState.ssid + ", " + configState.passwd);  //// TMP TMP TMP
-  WiFi.begin(configState.ssid, configState.passwd);
+  WiFi.begin(configState.ssid, rot47(configState.passwd));
   int i = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -700,9 +758,8 @@ void setup() {
     if (i++ > MAX_WIFI_RETRIES) {
       Serial.println("Using fallback WiFi parameters");
       configState.ssid = WLAN_SSID;
-      configState.passwd = WLAN_PASS;
-      WiFi.begin(configState.ssid, configState.passwd);
-      //Serial.println(configState.ssid + ", " + configState.passwd);  //// TMP TMP TMP
+      configState.passwd = rot47(WLAN_PASS);
+      WiFi.begin(configState.ssid, rot47(configState.passwd));
       delay(1000);
       i = 0;
     }
