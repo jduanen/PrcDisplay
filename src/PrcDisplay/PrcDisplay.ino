@@ -13,10 +13,11 @@
 *  - connect to http://<ipaddr>/update for OTA update of firmware
 *
 * TODO
+*  - Fix "System Information" card to reflect STA/AP mode
 *  - Add per-message blink option (using the SRs' OE bits)
 *  - Fill out symbols font
 *  - Clean up fonts
-*
+* 
 ****************************************************************************/
 
 #include <Arduino.h>
@@ -92,7 +93,7 @@ String rot47(String str) {
   return(outStr);
 }
 
-
+WiFiMode_t wifiMode;
 IPAddress softIPA;
 
 typedef struct {
@@ -272,8 +273,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     <div class="card">
       <h2>System Information</h2>
       <p class="staticState">App Version: <span style="color:blue" id="version">%VERSION%</span></p>
-      <p class="staticState">IP Address: <span style="color:blue" id="ipAddr">%IP_ADDR%</span></p>
-      <p class="staticState">Connection: <span style="color:blue" id="connection">%CONNECTION%</span></p>
+      <p class="staticState">WIFI Mode: <span style="color:blue" id="wifiMode">%WIFI_MODE%</span></p>
       <p class="staticState">RSSI: <span style="color:blue" id="rssi">%RSSI%</span></p>
       <p class="staticState">LED Fonts Version: <span style="color:blue" id="fontsVersion">%FONTS_VERSION%</span></p>
       <p class="staticState">Number of LED Fonts: <span style="color:blue" id="numFonts">%NUMBER_OF_FONTS%</span></p>
@@ -377,6 +377,21 @@ const char index_html[] PROGMEM = R"rawliteral(
       opt.value = i;
       opt.innerHTML = i;
       select.appendChild(opt);
+    }
+    var wifiMode = "%WIFI_MODE%";
+    switch (wifiMode) {
+      case "STA":
+        var p1 = "<p class=\"staticState\">IP Address: <span style=\"color:blue\" id=\"ipAddr\">%IP_ADDR%</span></p>";
+        var p2 = "<p class=\"staticState\">Connection: <span style=\"color:blue\" id=\"connection\">%CONNECTION%</span></p>";
+        document.getElementById("wifiMode").insertAdjacentHTML('afterend', p1);
+        document.getElementById("ipAddr").insertAdjacentHTML('afterend', p2);
+        break;
+      case "A_P":
+        var p1 = "<p class=\"staticState\">AP SSID: <span style=\"color:blue\" id=\"wifiApSsid\">%WIFI_AP_SSID%</span></p>";
+        document.getElementById("wifiMode").insertAdjacentHTML('afterend', p1);
+        break;
+      default:
+        console.log("WARNING: invalid WIFI mode: " + wifiMode);
     }
   }
   function setLedMsg() {
@@ -613,9 +628,15 @@ void initWebSocket() {
   server.addHandler(&ws);
 }
 
+const char modes[][4] = {"OFF", "STA", "A_P", "APS"};
+
 String processor(const String& var){
   if (var == "VERSION") {
     return (APP_VERSION);
+  } else if (var == "WIFI_MODE") {
+    return (modes[wifiMode]);
+  } else if (var == "WIFI_AP_SSID") {
+    return (WIFI_AP_SSID);
   } else if (var == "IP_ADDR") {
     return (WiFi.localIP().toString());
   } else if (var == "CONNECTION") {
@@ -749,8 +770,8 @@ void setup() {
   serializeJsonPretty(config, Serial);
   Serial.println("");
 
-  WiFiMode_t mode = WIFI_STA;
-  WiFi.mode(mode);
+  wifiMode = WIFI_STA;
+  WiFi.mode(wifiMode);
   WiFi.begin(configState.ssid, rot47(configState.passwd));
   int i = 0;
   while (WiFi.status() != WL_CONNECTED) {
@@ -758,8 +779,8 @@ void setup() {
     Serial.println("Connecting to WiFi.." + wifiStatusToString(WiFi.status()));
     if (i++ > MAX_WIFI_RETRIES) {
       Serial.println("Switch to AP mode: ");
-      mode = WIFI_AP;
-      WiFi.mode(mode);
+      wifiMode = WIFI_AP;
+      WiFi.mode(wifiMode);
       WiFi.softAP(WIFI_AP_SSID);
       break;
     }
@@ -775,15 +796,15 @@ void setup() {
       }
     }
   }
-  if (mode == WIFI_STA) {
+  if (wifiMode == WIFI_STA) {
     Serial.println("\nWiFi Station Mode");
     Serial.println("Connected to " + WiFi.SSID());
     Serial.println("IP address: " + WiFi.localIP().toString());
   }
-  if (mode == WIFI_AP) {
+  if (wifiMode == WIFI_AP) {
     Serial.println("\nWiFi Access Point Mode");
-    softIPA = WiFi.softAPIP();
     Serial.println("AP SSID: " + String(WIFI_AP_SSID));
+    softIPA = WiFi.softAPIP();
     Serial.println("AP IP Address: " + softIPA.toString());
   }
   Serial.println("RSSI: " + String(WiFi.RSSI()));
