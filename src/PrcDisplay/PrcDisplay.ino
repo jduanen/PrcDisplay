@@ -37,6 +37,8 @@
 
 #define VERBOSE             1
 
+#define WIFI_AP_SSID        "prcDisplay"
+ 
 #define WEB_SERVER_PORT     80
 
 #define MAX_WIFI_RETRIES    8 //64
@@ -91,13 +93,15 @@ String rot47(String str) {
 }
 
 
+IPAddress softIPA;
+
 typedef struct {
   String ssid;
   String passwd;
-  bool ledState;
+  String ledState;
   String ledMessage;
   char ledFont;
-  bool elState;
+  String elState;
   bool randomSequence;
   unsigned short sequenceNumber;
   unsigned short sequenceSpeed;
@@ -106,10 +110,10 @@ typedef struct {
 ConfigState configState = {
   String(WLAN_SSID),
   String(rot47(WLAN_PASS)),
-  true,
+  "ON",
   String(STARTUP_MSG),
   STARTUP_FONT,
-  true,
+  "ON",
   false,
   STARTUP_EL_SEQUENCE,
   STARTUP_EL_SPEED
@@ -234,7 +238,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     align-items: center;
   }
   input:checked+.slider {
-    background-color: #b30000;
+    background-color: #00b300;
   }
   input:checked+.slider:before {
     -webkit-transform: translateX(26px);
@@ -294,7 +298,7 @@ const char index_html[] PROGMEM = R"rawliteral(
       <div class="center">
         State: &nbsp <span id="ledState" style="color:blue"></span>
         <label class="switch">
-          <input type="checkbox" onchange="toggleCheckbox(this)" id="led">
+          <input type="checkbox" onclick="toggleCheckbox(this)" id="led">
           <span class="slider"></span>
         </label>
       </div>
@@ -311,7 +315,7 @@ const char index_html[] PROGMEM = R"rawliteral(
       <div class ="center">
         State: &nbsp <span id="elState" style="color:blue"></span>
         <label class="switch">
-          <input type="checkbox" onchange="toggleCheckbox(this)" id="el">
+          <input type="checkbox" onclick="toggleCheckbox(this)" id="el">
             <span class="slider"></span>
         </label>
       </div>
@@ -402,20 +406,12 @@ const char index_html[] PROGMEM = R"rawliteral(
     }
 
     elem = document.getElementById('ledState');
-    if (msgObj.led == "1"){
-      state = "ON";
-    } else {
-      state = "OFF";
-    }
-    elem.innerHTML = state;
+    elem.innerHTML = msgObj.led;
+    elem.checked = (msgObj.led == "ON");
 
     elem = document.getElementById('elState');
-    if (msgObj.el == "1"){
-      state = "ON";
-    } else {
-      state = "OFF";
-    }
-    elem.innerHTML = state;
+    elem.innerHTML = msgObj.el;
+    elem.checked = (msgObj.el == "ON");
 
     var rs = (msgObj.randomSequence != 0);
     document.getElementById('randomSequence').checked = rs;
@@ -433,18 +429,10 @@ const char index_html[] PROGMEM = R"rawliteral(
 
     document.getElementById("save").disabled = false;
   }
-  function setCheckbox(element, state) {
-    document.getElementById(element.id+"State").innerHTML = state;
-  }
   function toggleCheckbox(element) {
-    var jsonMsg = JSON.stringify({"msgType": element.id, "state": element.checked});
+    element.innerHTML = element.checked ? "ON" : "OFF";
+    var jsonMsg = JSON.stringify({"msgType": element.id, "state": element.innerHTML});
     websocket.send(jsonMsg);
-    if (element.checked){
-        document.getElementById(element.id+"State").innerHTML = "ON";
-    }
-    else {
-        document.getElementById(element.id+"State").innerHTML = "OFF"; 
-    }
   }
   function setSequence() {
     var seqNum = document.getElementById("sequenceNumber").value;
@@ -523,8 +511,8 @@ void notifyClients() {
   String msg = "{";
   msg += "\"ssid\": \"" + configState.ssid + "\"";
   msg += ", \"passwd\": \"" + configState.passwd + "\"";
-  msg += ", \"led\": " + String(configState.ledState);
-  msg += ", \"el\": " + String(configState.elState);
+  msg += ", \"led\": \"" + configState.ledState + "\"";
+  msg += ", \"el\": \"" + configState.elState + "\"";
   msg += ", \"msg\": \"" + configState.ledMessage + "\"";
   msg += ", \"randomSequence\": " + String(configState.randomSequence);
   msg += ", \"sequenceNumber\": " + String(configState.sequenceNumber);
@@ -544,14 +532,18 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       return;
     }
     if (VERBOSE) {
-      println("wsMsg: ");
+      print("wsMsg: ");
       serializeJsonPretty(wsMsg, Serial);
+      println("");
     }
     String msgType = String(wsMsg["msgType"]);
     if (msgType.equals("led")) {
-      configState.ledState = !configState.ledState;
+      configState.ledState = String(wsMsg["state"]);
     } else if (msgType.equals("el")) {
-      configState.elState = !configState.elState;
+      configState.elState = String(wsMsg["state"]);
+      if (configState.elState == "OFF") {
+        elWires.clear();
+      }
     } else if (msgType.equals("query")) {
       // NOP
     } else if (msgType.equals("ledMsg")) {
@@ -637,9 +629,9 @@ String processor(const String& var){
   } else if (var == "FONT_NAMES") {
     return (fontNamesList);
   } else if (var == "LED_STATE") {
-    return (configState.ledState ? "ON" : "OFF");
+    return configState.ledState;
   } else if (var == "EL_STATE") {
-    return (configState.ledState ? "ON" : "OFF");
+    return configState.elState;
   } else if (var == "SEQUENCES_VERSION") {
     return (elWires.libVersion);
   } else if (var == "NUMBER_OF_SEQUENCES") {
@@ -708,7 +700,7 @@ void setup() {
     dirty = true;
   }
   if (config.containsKey("ledState") && !config["ledState"].isNull()) {
-    configState.ledState = config["ledState"];
+    configState.ledState = String(config["ledState"]);
   } else {
     config["ledState"] = configState.ledState;
     dirty = true;
@@ -726,7 +718,7 @@ void setup() {
     dirty = true;
   }
   if (config.containsKey("elState") && !config["elState"].isNull()) {
-    configState.elState = config["elState"];
+    configState.elState = String(config["elState"]);
   } else {
     config["elState"] = configState.elState;
     dirty = true;
@@ -757,23 +749,43 @@ void setup() {
   serializeJsonPretty(config, Serial);
   Serial.println("");
 
-  WiFi.mode(WIFI_STA);
+  WiFiMode_t mode = WIFI_STA;
+  WiFi.mode(mode);
   WiFi.begin(configState.ssid, rot47(configState.passwd));
   int i = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi.." + wifiStatusToString(WiFi.status()));
     if (i++ > MAX_WIFI_RETRIES) {
-      Serial.println("Using fallback WiFi parameters");
-      configState.ssid = WLAN_SSID;
-      configState.passwd = rot47(WLAN_PASS);
-      WiFi.begin(configState.ssid, rot47(configState.passwd));
-      delay(1000);
-      i = 0;
+      Serial.println("Switch to AP mode: ");
+      mode = WIFI_AP;
+      WiFi.mode(mode);
+      WiFi.softAP(WIFI_AP_SSID);
+      break;
+    }
+    //// TODO figure out how to trigger this
+    if (false) {
+      if (i++ > MAX_WIFI_RETRIES) {
+        Serial.println("Using fallback WiFi parameters");
+        configState.ssid = WLAN_SSID;
+        configState.passwd = rot47(WLAN_PASS);
+        WiFi.begin(configState.ssid, rot47(configState.passwd));
+        delay(1000);
+        i = 0;
+      }
     }
   }
-  Serial.println("\nConnected to " + WiFi.SSID());
-  Serial.println("IP address: " + WiFi.localIP().toString());
+  if (mode == WIFI_STA) {
+    Serial.println("\nWiFi Station Mode");
+    Serial.println("Connected to " + WiFi.SSID());
+    Serial.println("IP address: " + WiFi.localIP().toString());
+  }
+  if (mode == WIFI_AP) {
+    Serial.println("\nWiFi Access Point Mode");
+    softIPA = WiFi.softAPIP();
+    Serial.println("AP SSID: " + String(WIFI_AP_SSID));
+    Serial.println("AP IP Address: " + softIPA.toString());
+  }
   Serial.println("RSSI: " + String(WiFi.RSSI()));
 
   initWebSocket();
@@ -797,15 +809,21 @@ void setup() {
 void loop() {
   ws.cleanupClients();
 
-  //// TMP TMP TMP
-  digitalWrite(ledPin, configState.ledState);
+  bool l = (configState.ledState == "ON");
+  digitalWrite(ledPin, l);  //// TMP TMP TMP
 
-  if (configState.elState) {
+  if (configState.elState == "ON") {
     elWires.run();
+  } else {
+    // MAGIC NUMBER: measured to approximate constant delay through loop
+    delayMicroseconds(100);
   }
 
-  leds.enableDisplay(configState.ledState);
-  if (configState.ledState) {
+  leds.enableDisplay(l);
+  if (l) {
     leds.run();
+  } else {
+    // MAGIC NUMBER: measured to approximate constant delay through loop
+    delayMicroseconds(1200);
   }
 };
