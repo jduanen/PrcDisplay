@@ -327,7 +327,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         <select id="sequenceNumber" name="sequenceNumber" onchange="setSequence()"></select>
         <br>
         Sequence Speed:
-        <input type="range", id="sequenceSpeed", min="1", max="500", value="250" onchange="setSequence()"> &nbsp <span id="speed"></span>
+        <input type="range", id="sequenceSpeed", min="1", max="1000", value="333" onchange="setSequence()"> &nbsp <span id="speed"></span>
       </div>
 
       <div class="vertical-center">
