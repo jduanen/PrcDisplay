@@ -23,9 +23,7 @@ A version of the LdgDisplay for my friend Peter Christy.
 
 ## Web Interface
 
-gif![Web Interface](webInterface.gif)
-jpg![Web Interface](webInterface.jpg)
-png![Web Interface](webInterface.png)
+![Web Interface](webInterface.png)
 
 ?
 
