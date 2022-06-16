@@ -23,7 +23,7 @@ A version of the LdgDisplay for my friend Peter Christy.
 
 ## Web Interface
 
-![Web Interface](webInterface.jpg)
+![Web Interface](webInterface.gif)
 
 ## Notes
 
