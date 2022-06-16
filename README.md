@@ -5,6 +5,26 @@ A version of the LdgDisplay for my friend Peter Christy.
 
 ![Mark2 Tinfoil Helmet](prcDisplay.gif)
 
+## Features
+
+* Independently controllable LED sign-board and cones wrapped with EL wires
+  - LED Sign-Board
+    * 21x7 array of blue LEDs
+    * Multiple built-in fonts, including symbols
+    * Continually scrolls (arbitrarily long) strings
+    * Individual strings can be composed of characters from different fonts
+  - EL Wire Cones
+    * four cones, each with two independent (different colored) EL wires
+    * selectable pattern and speed
+* Persistent storage of configuration parameters
+  - i.e., WiFi settings, LED display string, and EL cone pattern and speed
+* Powered by (micro-USB) rechargable (LiPo) battery
+* Standalone web-server-based status/control interface
+
+## Web Interface
+
+![Web Interface](webInterface.png)
+
 ## Notes
 
 * Use 21x7 LED array from old badge as message board
