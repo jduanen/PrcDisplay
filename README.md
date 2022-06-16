@@ -74,11 +74,20 @@ In addition to several stock Arduino libraries, this application relies on two c
 
 #### ElWires Library
 
+**TBD**
+
 ?
 
 #### LedArray Library
 
-?
+**TBD**
+
+* Use ShiftRegister74HC595 library for driving the shift registers
+  - #include <ShiftRegister74HC595.h>
+  - uint8_t pinValues[NUM_SR];
+  - ShiftRegister74HC595<NUM_SR> sr(DATA_PIN, SRCLK_PIN, RCLK_PIN);
+  - sr.setAll(pinValues[i]);
+
 
 ### Tools
 
@@ -98,23 +107,27 @@ The hardware consists of an ESP8266 controller, an AFD EL driver board, eight EL
 
 ### ESP8266
 
+**TBD**
+
 * Main controller, programmed in C++ using Arduino libraries
 
 ### EL Wires
 
+**TBD**
+
 * AFD Driver Board: driver for EL wires [Alien Font Display driver board](https://github.com/jduanen/alienFontDisplay)
 * Two 9' EL wires on each of four cones
 * I2C-controlled via PCF8574A eight-bit port expander
+* foam cones
+  - notched 3mm wide 3mm deep
+  - made wire support frames from laser-cut acrylic
+
+**TODO** add CAD files for supports
 
 ### LED Sign-Board
 
 * Blue LED array with 21 columns and 7 rows (modified LED badge)
 * Driven by four 74HC595 8-bit shift registers
-* Use ShiftRegister74HC595 library for driving the shift registers
-  - #include <ShiftRegister74HC595.h>
-  - uint8_t pinValues[NUM_SR];
-  - ShiftRegister74HC595<NUM_SR> sr(DATA_PIN, SRCLK_PIN, RCLK_PIN);
-  - sr.setAll(pinValues[i]);
 * columns are active low and rows are active high
 * layout: assume pixel at location (0,0) is in the upper right corner
   - srValues[3]: first eight columns
@@ -162,6 +175,13 @@ To provide the 12VDC required by the HV-PSU, a 5V to 12V step-up converter modul
 3.7V, 2000mAh LiPo battery
 
 **TBD** provide reference to the controller and battery
+
+#### Leather Flight Cap
+
+????
+
+**TBD** provide reference to the part and goggles
+
 
 ## TODO
 
