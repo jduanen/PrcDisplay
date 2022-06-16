@@ -31,6 +31,8 @@ The PrcDisplay device is controlled by a web interface through it's web server.
 
 To connect to the device's web server you point a web browser at the IP address of the device.  On power-up the device attempts to connect to a WiFi access point (AP) using the SSID and password stored in it's local (non-volatile) file system.  Should the device not be able to successfully connect to the given AP, it becomes an AP itself and allows other devices to connect to it (via a well-known SSID with no password).
 
+**TBD:** describe how to connect a smartphone to the device, also describe how to get the device's IP address
+
 ** N.B. This is insecure in that it stores and exchanges the WiFi password (effectively) in the clear -- you've been warned...
 
 At the top level, the web interface has two sections ("cards") -- one that provides (static between reboots) system information, and another that provides the ability to change the operating parameters of the device, update its firmware load, and save the configuration to its (non-volatile) local file system.
@@ -165,6 +167,7 @@ To provide the 12VDC required by the HV-PSU, a 5V to 12V step-up converter modul
 
 * make Kicad schematics for everything and add them to this repo
 * DRY up the config code in PrcDisplay.ino
+* do zeroconf trick and use symbolic name (as opposed to IP address) to connect to device
 * V2 features
   - battery level
   - Audio input
