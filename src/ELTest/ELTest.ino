@@ -21,7 +21,8 @@
 
 #define NUM_WIRES       8
 
-int indx = 0;
+int loopCnt = 0;
+int val = 0x55;
 
 PCF8574 prcd = PCF8574(I2C_BASE_ADDR);
 
@@ -40,7 +41,7 @@ void writeAll(byte values) {
 
   prcd.digitalWriteAll(digitalInput);
   if (VERBOSE) {
-    Serial.print("writeAll: 0x" +  String(values, HEX) + "; ");
+    Serial.println("writeAll: 0x" +  String(values, HEX) + "; ");
   }
 }
 
@@ -69,7 +70,10 @@ void setup() {
 }
 
 void loop() {
-  writeAll(indx++);
-  Serial.println("loopcnt: " + String(indx));
-  delay(100);
+  writeAll(val);
+  val ^= 0xFF;
+  if ((loopCnt++ % 1000000) == 0) {
+    Serial.println("loopcnt: " + String(loopCnt));
+  }
+  delay(1000);
 };
