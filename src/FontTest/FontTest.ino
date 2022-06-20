@@ -13,9 +13,9 @@
 #include "fonts.h"
 
 
-#define DATA_PIN        2
-#define SRCLK_PIN       4
-#define RCLK_PIN        5
+#define DATA_PIN        14
+#define SRCLK_PIN       12
+#define RCLK_PIN        13
 
 #define NUM_SR          4
 #define NUM_ROWS        7
