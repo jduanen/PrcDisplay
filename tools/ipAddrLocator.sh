@@ -1,17 +1,20 @@
 #!/bin/bash
 
-echo "Make sure device is off"
+if [ "$#" -ne 1 ]; then
+	echo "Must provide network address range"
+	exit 1
+fi
 
-BEFORE="/tmp/${PID}_B.xml"
-AFTER="/tmp/${PID}_A.xml"
+echo "Scanning for new devices in address range:" ${1}
 
-nmap -F 192.168.166.* -oX ${BEFORE} > /dev/null
+OLD="/tmp/$$_A.xml"
+NEW="/tmp/$$_B.xml"
 
-echo "Turn device on"
+nmap -F ${1} -oX ${OLD} > /dev/null
 
-nmap -F 192.168.166.* -oX ${AFTER} > /dev/null
-
-ndiff ${BEFORE} ${AFTER}
-
-
-#### FIXME make this loop and generate diffs instead of this
+while true; do
+	nmap -F ${1} -oX ${NEW} > /dev/null
+	ndiff ${OLD} ${NEW} | egrep -B1 ".Host is up"
+	mv ${NEW} ${OLD}
+	echo "----"
+done
