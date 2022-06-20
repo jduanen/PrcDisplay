@@ -38,3 +38,7 @@
 wifi.h
 undefined
 hold
+fontgen
+fonts.h
+seqgen
+sequences.h
