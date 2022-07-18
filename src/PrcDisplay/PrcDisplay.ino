@@ -13,7 +13,6 @@
 *  - connect to http://<ipaddr>/update for OTA update of firmware
 *
 * TODO
-*  - Fix "System Information" card to reflect STA/AP mode
 *  - Add per-message blink option (using the SRs' OE bits)
 *  - Fill out symbols font
 *  - Clean up fonts
@@ -126,11 +125,12 @@ AsyncElegantOtaClass AsyncElegantOTA;
 
 const int ledPin = 2;
 
+/// FIXME this belongs in the library
 AsyncWebServer  server(WEB_SERVER_PORT);
 AsyncWebSocket  ws("/ws");
 
-StaticJsonDocument<256> wsMsg;
-StaticJsonDocument<512> config;
+StaticJsonDocument<256> wsMsg;   //// FIXME this belongs in the library
+StaticJsonDocument<512> config;  //// FIXME this belongs in the library
 
 ElWires elWires;
 
