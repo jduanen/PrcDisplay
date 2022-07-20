@@ -11,6 +11,8 @@
 //  * fix blink display feature
 //  * add blink character feature (make it an attribute like fonts)
 
+//// FIXME clean up these interfaces
+
 #pragma once
 
 #include <Arduino.h>
@@ -31,9 +33,9 @@ public:
     void fill(uint32_t val);
     void run();
     void message(char str[], char font);
-    void message(String *strPtr, char font);
+    void message(const String& strPtr, char font);
     void appendMessage(char str[], char font);
-    void appendMessage(String *strPtr, char font);
+    void appendMessage(const String& strPtr, char font);
     void enableDisplay(bool enable);
     void blinkDisplay(byte rate);
 

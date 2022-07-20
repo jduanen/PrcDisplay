@@ -47,14 +47,13 @@ void LedArray<Size>::run() {
 //// FIXME DRY this all up
 
 template<uint8_t Size>
-void LedArray<Size>::message(String *strPtr, char font) {
+void LedArray<Size>::message(const String& str, char font) {
     _fontNums = "";
     assert((font >= '0') && (font < ('0' + NUM_FONTS))); // Invalid font number selection
-    for (int i = 0; (i < strPtr->length()); i++) {
+    for (int i = 0; (i < str.length()); i++) {
         _fontNums.concat(font);
     }
-//    _message(*strPtr, font);
-    _msg = *strPtr;
+    _msg = str;
 }
 
 template<uint8_t Size>
@@ -68,13 +67,12 @@ void LedArray<Size>::message(char str[], char font) {
 }
 
 template<uint8_t Size>
-void LedArray<Size>::appendMessage(String *strPtr, char font) {
+void LedArray<Size>::appendMessage(const String& str, char font) {
     assert((font >= '0') && (font < ('0' + NUM_FONTS))); // Invalid font number selection
-    for (int i = 0; (i < strPtr->length()); i++) {
+    for (int i = 0; (i < str.length()); i++) {
         _fontNums.concat(font);
     }
-//    _message(*strPtr, font);
-    _msg.concat(*strPtr);
+    _msg.concat(str);
 }
 
 template<uint8_t Size>

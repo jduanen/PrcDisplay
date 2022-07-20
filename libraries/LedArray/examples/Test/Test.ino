@@ -9,11 +9,12 @@
 #include <LedArray.h>
 
 
-#define TEST_NUMBER         1
+#define TEST_NUMBER         0
 
-#define DATA_PIN            2
-#define SRCLK_PIN           4
-#define RCLK_PIN            5
+#define DATA_PIN            14  // D5
+#define SRCLK_PIN           12  // D6
+#define RCLK_PIN            13  // D7
+#define OE_PIN              15  // D8
 
 #define NUM_SR              4
 #define NUM_ROWS            7
@@ -51,7 +52,7 @@ void setup() {
   Serial.println("Running Test #" + String(TEST_NUMBER));
   switch (TEST_NUMBER) {
     case 0:
-      leds.message(&msg, SKINNY_FONT);
+      leds.message(msg, SKINNY_FONT);
     break;
     case 1:
       leds.message("Wide FONT; ", WIDE_FONT);
@@ -61,16 +62,16 @@ void setup() {
       leds.appendMessage("ABCDEFGHIJKLMNOPQRSTU...", SYMBOLS_FONT);
     break;
     case 2:
-      leds.message(&msg, WIDE_FONT);
+      leds.message(msg, WIDE_FONT);
     break;
     case 3:
-      leds.message(&msg, SKINNY_FONT);
+      leds.message(msg, SKINNY_FONT);
     break;
     case 4:
-      leds.message(&msg, VERY_SKINNY_FONT);
+      leds.message(msg, VERY_SKINNY_FONT);
     break;
     case 5:
-      leds.message(&msg, SYMBOLS_FONT);
+      leds.message(msg, SYMBOLS_FONT);
     break;
     default:
       Serial.println("Invalid Test Number: " + String(TEST_NUMBER));
