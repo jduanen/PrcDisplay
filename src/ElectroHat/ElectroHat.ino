@@ -8,6 +8,24 @@
 * N.B. This is insecure in that it passes the WiFi password in the clear -- you've been warned...
 *       (actually, it's slightly obfuscated, but essentially in the clear)
 *
+* WebSocket interface
+*  - From client to server:
+*   * {"applName": <String>, "libVersion": <String>, "ipAddr": <String>,
+*      "ssid": <String>, "passwd": <String>, "RSSI": <Int>, "led": <Boolean>,
+*      "ledFont": <Int>, "msg": <String>, "el": <Boolean>,
+*      "randomSequence": <Boolean>, "sequenceNumber": <Int>, "sequenceSpeed": <Int>}
+*  - From server to client:
+*   * {"msgType": "ledMsg", "mode": "set", "fontNum": <Int>, "text": <String>}
+*   * {"msgType": "ledMsg", "mode": "append", "fontNum": <Int>, "text": <String>}
+*   * {"msgType": "led", "state": <Boolean>}
+*   * {"msgType": "el", "state": <Boolean>}
+*   * {"msgType": "sequence", "sequenceNumber: <Int>, sequenceSpeed: <Int>}
+*   * {"msgType": "saveConf", "ssid": document.getElementById("ssid").value,
+*      "passwd": <String>, "ledState": <Boolean>, "ledMessage": <String>,
+*      "ledFont": <Int>, "elState": <Boolean>, "randomSequence": <Boolean>,
+*      "sequenceNumber": <Int>, "sequenceSpeed": <Int>}
+*   * {"msgType": "randomSequence", "state": <Boolean>}
+*
 * Notes:
 *  - I2C defaults: SDA=GPIO4 -> D2, SCL=GPIO5 -> D1
 *  - connect to http://<ipaddr>/index.html for web interface
