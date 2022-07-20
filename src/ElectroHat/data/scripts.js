@@ -76,11 +76,10 @@
   function setSequence() {
     var seqNum = document.getElementById("sequenceNumber").value;
     var seqSpeed = document.getElementById("sequenceSpeed").value;
-    var jsonMsg = JSON.stringify({"msgType": "sequence", sequenceNumber: seqNum, sequenceSpeed: seqSpeed});
+    var jsonMsg = JSON.stringify({"msgType": "sequence", "sequenceNumber": seqNum, "sequenceSpeed": seqSpeed});
     websocket.send(jsonMsg);
   }
   function saveConfiguration() {
-    console.log("SAVE CONFIG");
     var jsonMsg = JSON.stringify({"msgType": "saveConf",
                                   "ssid": document.getElementById("ssid").value,
                                   "passwd": rot47(document.getElementById("password").value),
@@ -92,7 +91,6 @@
                                   "sequenceNumber": document.getElementById('sequenceNumber').value,
                                   "sequenceSpeed": document.getElementById('sequenceSpeed').value
                                 });
-    console.log(jsonMsg);
     document.getElementById("save").disabled = true;
     websocket.send(jsonMsg);
   }
