@@ -21,12 +21,12 @@
   }
   function setLedMsg() {
     var fontNum = document.getElementById('fonts').value;
-    var jsonMsg = JSON.stringify({"msgType": "ledMsg", "mode": "set", "fontNum": parseInt(fontNum), "text": document.getElementById('ledMessage').value});
+    var jsonMsg = JSON.stringify({"msgType": "ledMsg", "mode": "set", "fontNum": fontNum, "text": document.getElementById('ledMessage').value});
     websocket.send(jsonMsg);
   }
   function appendLedMsg() {
     var fontNum = document.getElementById('fonts').value;
-    var jsonMsg = JSON.stringify({"msgType": "ledMsg", "mode": "append", "fontNum": parseInt(fontNum), "text": document.getElementById('ledMessage').value});
+    var jsonMsg = JSON.stringify({"msgType": "ledMsg", "mode": "append", "fontNum": fontNum, "text": document.getElementById('ledMessage').value});
     websocket.send(jsonMsg);
   }
   function onMessage(event) {
@@ -35,8 +35,7 @@
     const msgObj = JSON.parse(event.data);
     console.log("msgObj: " + JSON.stringify(msgObj));
 
-    elem = document.getElementById("ssid");
-    elem.value = msgObj.ssid;
+    document.getElementById("ssid").value = msgObj.ssid;
 
     elem = document.getElementById("password");
     if (msgObj.passwd != null) {
@@ -45,15 +44,15 @@
       elem.value = "";
     }
 
-    elem = document.getElementById('ledState');
-    elem.innerHTML = msgObj.led;
-    elem.checked = (msgObj.led == "ON");
+    var led = (msgObj.led == "true");
+    document.getElementById('ledState').innerHTML = (led ? "ON" : "OFF");
+    document.getElementById('led').checked = led;
 
-    elem = document.getElementById('elState');
-    elem.innerHTML = msgObj.el;
-    elem.checked = (msgObj.el == "ON");
+    var el = (msgObj.el == "true");
+    document.getElementById('elState').innerHTML = (el ? "ON" : "OFF");
+    document.getElementById('el').checked = el;
 
-    var rs = (msgObj.randomSequence != 0);
+    var rs = (msgObj.randomSequence == "true");
     document.getElementById('randomSequence').checked = rs;
     document.getElementById('sequenceNumber').disabled = rs;
 
@@ -65,13 +64,13 @@
 
     elem = document.getElementById('sequenceSpeed');
     elem.value = msgObj.sequenceSpeed;
-    document.getElementById("speed").innerHTML = msgObj.sequenceSpeed;
+    document.getElementById("speed").innerHTML = parseInt(msgObj.sequenceSpeed);
 
     document.getElementById("save").disabled = false;
   }
   function toggleCheckbox(element) {
-    element.innerHTML = element.checked ? "ON" : "OFF";
-    var jsonMsg = JSON.stringify({"msgType": element.id, "state": element.innerHTML});
+    element.innerHTML = (element.checked ? "ON" : "OFF");
+    var jsonMsg = JSON.stringify({"msgType": element.id, "state": element.checked});
     websocket.send(jsonMsg);
   }
   function setSequence() {
@@ -81,9 +80,19 @@
     websocket.send(jsonMsg);
   }
   function saveConfiguration() {
-    var ssid = document.getElementById("ssid").value;
-    var passwd = document.getElementById("password").value;
-    var jsonMsg = JSON.stringify({"msgType": "saveConf", "ssid": ssid, "passwd": rot47(passwd)});
+    console.log("SAVE CONFIG");
+    var jsonMsg = JSON.stringify({"msgType": "saveConf",
+                                  "ssid": document.getElementById("ssid").value,
+                                  "passwd": rot47(document.getElementById("password").value),
+                                  "ledState": document.getElementById("led").checked,
+                                  "ledMessage": document.getElementById('ledMessage').value,
+                                  "ledFont": document.getElementById('fonts').value,
+                                  "elState": document.getElementById('el').checked,
+                                  "randomSequence": document.getElementById("randomSequence").checked,
+                                  "sequenceNumber": document.getElementById('sequenceNumber').value,
+                                  "sequenceSpeed": document.getElementById('sequenceSpeed').value
+                                });
+    console.log(jsonMsg);
     document.getElementById("save").disabled = true;
     websocket.send(jsonMsg);
   }
