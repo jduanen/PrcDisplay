@@ -218,10 +218,8 @@ String webpageMsgHandler(const JsonDocument& wsMsg) {
         configState.sequenceSpeed = wsMsg["sequenceSpeed"];
         cs.configJsonDoc["sequenceSpeed"] = wsMsg["sequenceSpeed"];
     
-        println("YYYYY");
         serializeJsonPretty(cs.configJsonDoc, Serial);
         cs.saveConfig();
-        println("ZZZZZ");
     } else if (msgType.equalsIgnoreCase("reboot")) {
         println("REBOOTING...");
         reboot();
@@ -295,10 +293,8 @@ void config() {
         dirty = true;
     }
     if (dirty) {
-        println("AAAAA");
         serializeJsonPretty(cs.configJsonDoc, Serial);
         cs.saveConfig();
-        println("BBBBB");
     }
 
     configState.ssid = cs.configJsonDoc["ssid"].as<String>();
@@ -312,13 +308,11 @@ void config() {
     configState.sequenceSpeed = cs.configJsonDoc["sequenceSpeed"].as<unsigned int>();
     if (VERBOSE) {
         println("Config File:");
-        println("CCCCC");
         serializeJsonPretty(cs.configJsonDoc, Serial);
         cs.listFiles(CONFIG_PATH);
         cs.printConfig();
 //        serializeJsonPretty(cs.configJsonDoc, Serial);
         println("");
-        println("DDDDD");
     }
 };
 
@@ -358,12 +352,11 @@ void setup() {
     pinMode(ledPin, OUTPUT);
     digitalWrite(ledPin, LOW);
 
-    //// FIXME 
+    //// FIXME TMP TMP TMP
     if (false) {
         // clear the local file system
         cs.format();
     }
-
     if (true) {
         Serial.println("Local Files:");
         cs.listFiles("/");
