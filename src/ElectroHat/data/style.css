@@ -110,7 +110,7 @@ body {
   align-items: center;
 }
 input:checked+.slider {
-  background-color: #00b300;
+  background-color: #28C999;
 }
 input:checked+.slider:before {
   -webkit-transform: translateX(26px);
