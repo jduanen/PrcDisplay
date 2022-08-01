@@ -197,9 +197,9 @@ String webpageMsgHandler(const JsonDocument& wsMsg) {
         configState.ledFont = wsMsg["fontNum"];
         char fChr = configState.ledFont + '0';
         if (mode.equalsIgnoreCase("set")) {
-            leds.message(&configState.ledMessage, fChr);
+            leds.message(configState.ledMessage, fChr);
         } else if (mode.equalsIgnoreCase("append")) {
-            leds.appendMessage(&configState.ledMessage, fChr);
+            leds.appendMessage(configState.ledMessage, fChr);
         } else {
             Serial.println("Error: unknown mode type: " + mode);
             return(String(""));
@@ -357,7 +357,7 @@ void initLedArray() {
 
     leds.clear();
     //// FIXME fix this method's interface
-    leds.message(&configState.ledMessage, ('0' + configState.ledFont));
+    leds.message(configState.ledMessage, ('0' + configState.ledFont));
 };
 
 void setup() { 
