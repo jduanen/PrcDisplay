@@ -13,8 +13,8 @@
 #define DEF_SEQUENCE_NUMBER 0
 #define DEF_SEQUENCE_SPEED  0
 
-#define I2C_BASE_ADDR       0x38    // PCF8574A
-//#define I2C_BASE_ADDR       0x20    // PCF8574
+#define I2C_BASE_ADDR       0x38    // PCF8574A afd driver
+//#define I2C_BASE_ADDR       0x20    // PCF8574 breakout board
 #define READ_ADDR           0x4F
 #define WRITE_ADDR          0x4E
 
@@ -26,6 +26,8 @@ public:
     String libVersion = EL_WIRE_LIB_VERSION;
 
 	ElWires();
+	ElWires(bool delayedStart);
+	void start();
 	bool randomSequence();
 	void enableRandomSequence(bool enable);
 
@@ -54,6 +56,8 @@ private:
 	bool _lastRandomSequence = _randomSequence;
 	unsigned short _lastSequenceNumber = _sequenceNumber;
 	unsigned int _lastSequenceSpeed = _sequenceSpeed;
+
+	void _create(bool delayedStart);
 };
 
 #include "ElWires.hpp"

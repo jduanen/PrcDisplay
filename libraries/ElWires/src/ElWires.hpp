@@ -5,6 +5,15 @@
 */
 
 ElWires::ElWires() {
+	_create(false);
+};
+
+// FIXME this is a sleazy hack to get around startup problems with XIAO ESP32
+ElWires::ElWires(bool delayedStart) {
+	_create(delayedStart);
+};
+
+void ElWires::_create(bool delayedStart) {
 	_numElWires = NUM_EL_WIRES;
 	_numSequences = NUM_SEQUENCES;
 
@@ -16,13 +25,20 @@ ElWires::ElWires() {
     _prcd.pinMode(P5, OUTPUT, HIGH);
     _prcd.pinMode(P6, OUTPUT, HIGH);
     _prcd.pinMode(P7, OUTPUT, HIGH);
-    _prcd.begin();
+
+    if (!delayedStart) {
+	    _prcd.begin();
+	}
 
     clear();
 
     // use floating input as source of randomness
     randomSeed(analogRead(UNUSED_ANALOG));
 };
+
+void ElWires::start() {
+	_prcd.begin();
+}
 
 unsigned short ElWires::numSequences() {
 	return _numSequences;
